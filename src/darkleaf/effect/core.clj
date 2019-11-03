@@ -13,18 +13,24 @@
      (cr {! i/coeffect} ~@body)
      ::coroutine))
 
+;;TODO: effn, deffn
+
 (defn interpret [effn & args]
-  (letfn [(->continuation [stack]
-            (fn continuation [coeffect]
-              (loop [stack    stack
-                     coeffect coeffect]
-                (if (empty? stack)
-                  [coeffect nil]
-                  (let [coroutine (peek stack)
-                        val  (i/with-coeffect coeffect coroutine)]
-                    (case (i/kind val)
-                      ::effect       [val (->continuation stack)]
-                      ::coroutine (recur (conj stack val) nil)
-                      ;; coroutine is finished
-                      (recur (pop stack) val)))))))]
-    ((->continuation (list (apply effn args))) nil)))
+  (let [->continuation (fn ->continuation [stack]
+                         (fn continuation [coeffect]
+                           (loop [stack    stack
+                                  coeffect coeffect]
+                             (if (empty? stack)
+                               [coeffect nil]
+                               (let [coroutine (peek stack)
+                                     val       (i/with-coeffect coeffect coroutine)]
+                                 (case (i/kind val)
+                                   ::effect    [val (->continuation stack)]
+                                   ::coroutine (recur (conj stack val) nil)
+                                   ;; coroutine is finished
+                                   (recur (pop stack) val)))))))
+        coroutine      (apply effn args)
+        stack          (list coroutine)
+        continuation   (->continuation stack)
+        coeffect       ::not-used]
+    (continuation coeffect)))
