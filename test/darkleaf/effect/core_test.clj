@@ -8,10 +8,10 @@
         ef                (fn [x]
                             (e/eff
                               x))
-        result            (loop [[effect callback] (e/interpret ef 42)]
-                            (if (nil? callback)
+        result            (loop [[effect continuation] (e/interpret ef 42)]
+                            (if (nil? continuation)
                               effect
-                              (recur (callback (effect-!>coeffect effect)))))]
+                              (recur (continuation (effect-!>coeffect effect)))))]
     (t/is (= 42 result))))
 
 (t/deftest simple
@@ -21,10 +21,10 @@
         ef                (fn [x]
                             (e/eff
                               (str x " " (e/! [:read]))))
-        result            (loop [[effect callback] (e/interpret ef "Hi!")]
-                            (if (nil? callback)
+        result            (loop [[effect continuation] (e/interpret ef "Hi!")]
+                            (if (nil? continuation)
                               effect
-                              (recur (callback (effect-!>coeffect effect)))))]
+                              (recur (continuation (effect-!>coeffect effect)))))]
     (t/is (= "Hi! John" result))))
 
 (t/deftest stack
@@ -60,10 +60,10 @@
                             (e/eff
                               (e/! (ef2 "foo"))))
 
-        result            (loop [[effect callback] (e/interpret ef)
+        result            (loop [[effect continuation] (e/interpret ef)
                                  i                 0]
-                            (if (nil? callback)
+                            (if (nil? continuation)
                               effect
-                              (recur (callback (effect-!>coeffect effect i))
+                              (recur (continuation (effect-!>coeffect effect i))
                                      (inc i))))]
     (t/is (= :ok result))))

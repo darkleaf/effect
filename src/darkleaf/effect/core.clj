@@ -11,20 +11,20 @@
 (defmacro ^{:style/indent :defn} eff [& body]
   `(i/with-kind
      (cr {! i/coeffect} ~@body)
-     ::continuation))
+     ::coroutine))
 
 (defn interpret [effn & args]
-  (letfn [(->callback [stack]
-            (fn callback [coeffect]
+  (letfn [(->continuation [stack]
+            (fn continuation [coeffect]
               (loop [stack    stack
                      coeffect coeffect]
                 (if (empty? stack)
                   [coeffect nil]
-                  (let [cont (peek stack)
-                        val  (i/with-coeffect coeffect cont)]
+                  (let [coroutine (peek stack)
+                        val  (i/with-coeffect coeffect coroutine)]
                     (case (i/kind val)
-                      ::effect       [val (->callback stack)]
-                      ::continuation (recur (conj stack val) nil)
-                      ;; nested continuation is finished
+                      ::effect       [val (->continuation stack)]
+                      ::coroutine (recur (conj stack val) nil)
+                      ;; nested coroutine is finished
                       (recur (pop stack) val)))))))]
-    ((->callback (list (apply effn args))) nil)))
+    ((->continuation (list (apply effn args))) nil)))

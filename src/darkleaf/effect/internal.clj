@@ -11,6 +11,6 @@
 (defn coeffect []
   *coeffect*)
 
-(defn with-coeffect [coval f]
+(defn with-coeffect [coval coroutine]
   (binding [*coeffect* coval]
-    (f)))
+    (coroutine)))
