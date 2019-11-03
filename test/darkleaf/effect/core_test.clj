@@ -1,69 +1,118 @@
 (ns darkleaf.effect.core-test
   (:require
-   [darkleaf.effect.core :as e]
+   [darkleaf.effect.core :as e :refer [eff !]]
    [clojure.test :as t]))
 
-(t/deftest trivial
-  (let [effect-!>coeffect (fn [effect] (throw (ex-info "Should not be used" {:effect effect})))
-        ef                (fn [x]
-                            (e/eff
-                              x))
-        result            (loop [[effect continuation] (e/interpret ef 42)]
-                            (if (nil? continuation)
-                              effect
-                              (recur (continuation (effect-!>coeffect effect)))))]
-    (t/is (= 42 result))))
-
-(t/deftest simple
-  (let [effect-!>coeffect (fn [effect]
-                            (case (first effect)
+(t/deftest simple-use-case
+  (let [effect-!>coeffect (fn [[tag value :as effect]]
+                            (case tag
                               :read "John"))
         ef                (fn [x]
-                            (e/eff
-                              (str x " " (e/! [:read]))))
+                            (eff
+                              (str x " " (! [:read]))))
         result            (loop [[effect continuation] (e/interpret ef "Hi!")]
                             (if (nil? continuation)
                               effect
                               (recur (continuation (effect-!>coeffect effect)))))]
     (t/is (= "Hi! John" result))))
 
-(t/deftest stack
-  (let [effect-!>coeffect (fn [[kind value :as effect] i]
-                            (cond
-                              (and (= 0 i)
-                                   (= :prn kind)
-                                   (= "foo" value))
-                              nil
-
-                              (and (= 1 i)
-                                   (= :prn kind)
-                                   (= 0 value))
-                              nil
-
-                              (and (= 2 i)
-                                   (= :prn kind)
-                                   (= 1 value))
-                              nil
-
-                              :else
-                              (throw (ex-info "Unknown effect" {:effect effect, :i i}))))
-        ef1               (fn []
-                            (e/eff
-                              (doseq [i (range 2)]
-                                (e/! [:prn i]))))
-        ef2               (fn [x]
-                            (e/eff
-                              (e/! [:prn x])
-                              (e/! (ef1))
-                              :ok))
-        ef                (fn []
-                            (e/eff
-                              (e/! (ef2 "foo"))))
-
-        result            (loop [[effect continuation] (e/interpret ef)
-                                 i                 0]
+(t/deftest stack-use-case
+  (let [effect-!>coeffect (fn [[tag value :as effect]]
+                            (case tag
+                              :prn  nil
+                              :read "input string"))
+        nested-ef         (fn [x]
+                            (eff
+                              (! [:prn x])
+                              (! [:read])))
+        ef                (fn [x]
+                            (eff
+                              (! [:prn :ef])
+                              (! (nested-ef x))))
+        result            (loop [[effect continuation] (e/interpret ef "some val")]
                             (if (nil? continuation)
                               effect
-                              (recur (continuation (effect-!>coeffect effect i))
-                                     (inc i))))]
-    (t/is (= :ok result))))
+                              (recur (continuation (effect-!>coeffect effect)))))]
+    (t/is (= "input string" result))))
+
+(t/deftest script
+  (let [ef (fn [x]
+             (eff
+               (! [:some-eff x])))]
+    (t/testing "correct"
+      (let [script [{:args [:value]}
+                    {:effect   [:some-eff :value]
+                     :coeffect :other-value}
+                    {:return :other-value}]]
+        (e/test ef script)))
+    (t/testing "wrong effect"
+      (let [script [{:args [:value]}
+                    {:effect   [:wrong]
+                     :coeffect :other-value}
+                    {:return :other-value}]
+            report (with-redefs [t/do-report identity]
+                     (e/test ef script))]
+        (t/is (= :fail (:type report)))))
+    (t/testing "wrong return"
+      (let [script [{:args [:value]}
+                    {:effect   [:some-eff :value]
+                     :coeffect :other-value}
+                    {:return :wrong}]
+            report (with-redefs [t/do-report identity]
+                     (e/test ef script))]
+        (t/is (= :fail (:type report)))))
+    (t/testing "missed effect"
+      (let [script [{:args [:value]}
+                    {:return :wrong}]
+            report (with-redefs [t/do-report identity]
+                     (e/test ef script))]
+        (t/is (= :fail (:type report)))))
+    (t/testing "extra effect"
+      (let [script [{:args [:value]}
+                    {:effect   [:some-eff :value]
+                     :coeffect :other-value}
+                    {:effect   [:extra-eff :value]
+                     :coeffect :other-value}
+                    {:return :other-value}]
+            report (with-redefs [t/do-report identity]
+                     (e/test ef script))]
+        (t/is (= :fail (:type report)))))))
+
+(t/deftest trivial-script
+  (let [ef     (fn [x]
+                 (eff
+                   x))
+        script [{:args [:value]}
+                {:return :value}]]
+      (e/test ef script)))
+
+(t/deftest fallback-script
+  (let [ef     (fn [x]
+                 (eff
+                   (! (inc x))))
+        script [{:args [0]}
+                {:return 1}]]
+    (e/test ef script)))
+
+(t/deftest stack-script
+  (let [ef1    (fn []
+                 (eff
+                   (doseq [i (range 2)]
+                     (! [:prn i]))))
+        ef2    (fn [x]
+                 (eff
+                   (! [:prn x])
+                   (! (ef1))
+                   :ok))
+        ef     (fn []
+                 (eff
+                   (! (ef2 "foo"))))
+        script [{:args []}
+                {:effect   [:prn "foo"]
+                 :coeffect nil}
+                {:effect   [:prn 0]
+                 :coeffect nil}
+                {:effect   [:prn 1]
+                 :coeffect nil}
+                {:return :ok}]]
+    (e/test ef script)))
