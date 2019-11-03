@@ -1,0 +1,2 @@
+{:deps    {cloroutine {:mvn/version "8"}}
+ :aliases {:dev {:extra-paths ["test"]}}}
