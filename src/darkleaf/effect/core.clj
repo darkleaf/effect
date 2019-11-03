@@ -25,6 +25,6 @@
                     (case (i/kind val)
                       ::effect       [val (->continuation stack)]
                       ::coroutine (recur (conj stack val) nil)
-                      ;; nested coroutine is finished
+                      ;; coroutine is finished
                       (recur (pop stack) val)))))))]
     ((->continuation (list (apply effn args))) nil)))
