@@ -7,9 +7,15 @@
   #?(:cljs (:require-macros [darkleaf.effect.core :refer [eff]])))
 
 (defn ! [x]
-  (if (vector? x)
+  (cond
+    (vector? x)
     (i/with-kind x ::effect)
-    x))
+
+    (= ::coroutine (i/kind x))
+    x
+
+    :else
+    (i/with-kind [x] ::wrapped)))
 
 (defmacro ^{:style/indent :defn} eff [& body]
   `(i/with-kind
@@ -28,6 +34,7 @@
                                  (case (i/kind val)
                                    ::effect    [val (->continuation stack)]
                                    ::coroutine (recur (conj stack val) nil)
+                                   ::wrapped   (recur  stack (first val))
                                    ;; coroutine is finished
                                    (recur (pop stack) val)))))))
         coroutine      (apply effn args)

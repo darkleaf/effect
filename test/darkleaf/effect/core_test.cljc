@@ -119,9 +119,13 @@
 (t/deftest fallback-script
   (let [ef     (fn [x]
                  (eff
-                   (! (inc x))))
+                   (! (inc x))
+                   (! [:eff])
+                   (! (dec x))))
         script [{:args [0]}
-                {:return 1}]]
+                {:effect   [:eff]
+                 :coeffect nil}
+                {:return -1}]]
     (e/test ef script)))
 
 (t/deftest stack-script
