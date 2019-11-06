@@ -1,8 +1,8 @@
 (defproject darkleaf/effect "0.0.1"
   :description "Effect system"
   :url "https://github.com/darkleaf/effect/"
-  :license {:name "Unlicense"
-            :url  "http://unlicense.org/"}
+  :license {:name "Eclipse Public License"
+            :url  "http://www.eclipse.org/legal/epl-v20.html"}
   :dependencies [[org.clojure/clojure "1.10.1" :scope "provided"]
                  [org.clojure/clojurescript "1.10.520" :scope "provided"]
                  [cloroutine "8"]]
