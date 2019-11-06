@@ -1,3 +1,5 @@
+[![Clojars Project](https://img.shields.io/clojars/v/darkleaf/effect.svg)](https://clojars.org/darkleaf/effect)
+
 # Effect
 
 ## Development
