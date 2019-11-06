@@ -45,6 +45,10 @@
                      :coeffect :other-value}
                     {:return :other-value}]]
         (e/test ef script)))
+    (t/testing "final-effect"
+      (let [script [{:args [:value]}
+                    {:final-effect [:some-eff :value]}]]
+        (e/test ef script)))
     (t/testing "wrong effect"
       (let [script [{:args [:value]}
                     {:effect   [:wrong]
@@ -61,6 +65,16 @@
             report (with-redefs [t/do-report identity]
                      (e/test ef script))]
         (t/is (= :fail (:type report)))))
+    (t/testing "wrong final-effect"
+      (let [script [{:args [:value]}
+                    {:final-effect [:wrong]}]
+            report (with-redefs [t/do-report identity]
+                     (e/test ef script))]
+        (t/is (= {:type     :fail,
+                  :expected [:wrong],
+                  :actual   [:some-eff :value],
+                  :message  "Wrong final effect"}
+                 report))))
     (t/testing "missed effect"
       (let [script [{:args [:value]}
                     {:return :wrong}]
@@ -153,8 +167,9 @@
                                        value)))
         ef                (fn [x]
                             (eff
-                              (+ 5 (! [:maybe x]))))
-        interpretator     (fn [x]
+                              (+ 5 (! [:maybe x]))))]
+    (t/testing "interpretator"
+      (let [interpretator (fn [x]
                             (loop [[effect continuation] (e/loop-factory ef x)]
                               (if (nil? continuation)
                                 effect
@@ -162,8 +177,19 @@
                                   (if (reduced? coeffect)
                                     (unreduced coeffect)
                                     (recur (continuation coeffect)))))))]
-    (t/is (= 6 (interpretator 1)))
-    (t/is (= nil (interpretator nil)))))
+        (t/is (= 6 (interpretator 1)))
+        (t/is (= nil (interpretator nil)))))
+    (t/testing "script"
+      (t/testing :just
+        (let [script [{:args [1]}
+                      {:effect   [:maybe 1]
+                       :coeffect 1}
+                      {:return 6}]]
+          (e/test ef script)))
+      (t/testing :nothing
+        (let [script [{:args [nil]}
+                      {:final-effect [:maybe nil]}]]
+          (e/test ef script))))))
 
 (t/deftest state-example
   (let [effect-!>coeffect (fn [state [tag f & args :as effect]]

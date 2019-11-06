@@ -64,10 +64,21 @@
 (defn- test-middle-items [ctx items]
   (reduce test-middle-item ctx items))
 
-(defn- test-last-item [{:keys [report actual-effect continuation]} {:keys [return]}]
+(defn- test-last-item [{:keys [report actual-effect continuation]}
+                       {:keys [return final-effect]}]
   (cond
     (not= :pass (:type report))
     {:report report}
+
+    (and (some? final-effect)
+         (= final-effect actual-effect))
+    {:report report}
+
+    (some? final-effect)
+    {:report {:type     :fail
+              :expected final-effect
+              :actual   actual-effect
+              :message  "Wrong final effect"}}
 
     (some? continuation)
     {:report {:type     :fail
