@@ -4,3 +4,4 @@
 /out
 /.cljs_node_repl
 /.lein-failures
+/pom.xml*
