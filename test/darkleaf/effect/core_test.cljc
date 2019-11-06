@@ -10,7 +10,7 @@
         ef                (fn [x]
                             (eff
                               (str x " " (! [:read]))))
-        result            (loop [[effect continuation] (e/interpret ef "Hi!")]
+        result            (loop [[effect continuation] (e/loop-factory ef "Hi!")]
                             (if (nil? continuation)
                               effect
                               (recur (continuation (effect-!>coeffect effect)))))]
@@ -29,7 +29,7 @@
                             (eff
                               (! [:prn :ef])
                               (! (nested-ef x))))
-        result            (loop [[effect continuation] (e/interpret ef "some val")]
+        result            (loop [[effect continuation] (e/loop-factory ef "some val")]
                             (if (nil? continuation)
                               effect
                               (recur (continuation (effect-!>coeffect effect)))))]
@@ -140,7 +140,7 @@
                                                     callback)
                                         0)))]
        (t/async done
-                (main-loop (e/interpret ef)
+                (main-loop (e/loop-factory ef)
                            (fn [result]
                              (t/is (= ["value" "value"] result))
                              (done)))))))
@@ -155,7 +155,7 @@
                             (eff
                               (+ 5 (! [:maybe x]))))
         interpretator     (fn [x]
-                            (loop [[effect continuation] (e/interpret ef x)]
+                            (loop [[effect continuation] (e/loop-factory ef x)]
                               (if (nil? continuation)
                                 effect
                                 (let [coeffect (effect-!>coeffect effect)]
@@ -177,7 +177,7 @@
                                (! [:state/update + 2])
                                (! [:state/get])]))
         result            (loop [state                 0
-                                 [effect continuation] (e/interpret ef)]
+                                 [effect continuation] (e/loop-factory ef)]
                             (if (nil? continuation)
                               effect
                               (let [[state coeffect] (effect-!>coeffect state effect)]

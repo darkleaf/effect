@@ -16,7 +16,7 @@
      (cr {! i/coeffect} ~@body)
      ::coroutine))
 
-(defn interpret [effn & args]
+(defn loop-factory [effn & args]
   (let [->continuation (fn ->continuation [stack]
                          (fn continuation [coeffect]
                            (loop [stack    stack
@@ -37,7 +37,7 @@
     (continuation coeffect)))
 
 (defn- test-first-item [{:keys [report effn]} {:keys [args]}]
-  (let [[effect continuation] (apply interpret effn args)]
+  (let [[effect continuation] (apply loop-factory effn args)]
     {:report        report
      :actual-effect effect
      :continuation  continuation}))
