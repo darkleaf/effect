@@ -170,9 +170,11 @@
                             (case tag
                               :state/get    [state state]
                               :state/update (let [new-state (apply f state args)]
-                                              [new-state new-state])))
+                                              [new-state new-state])
+                              :io/print     [state nil]))
         ef                (fn []
                             (eff
+                              (! [:io/print "hi"])
                               [(! [:state/update inc])
                                (! [:state/update + 2])
                                (! [:state/get])]))
