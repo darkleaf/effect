@@ -47,13 +47,17 @@
     (not= :pass (:type report))
     {:report report}
 
+    (nil? continuation)
+    {:report {:type     :fail
+              :expected effect
+              :actual   nil
+              :message  "Misssed effect"}}
+
     (not= effect actual-effect)
     {:report {:type     :fail
               :expected effect
-              :actual   actual-effect}}
-
-    (nil? continuation)
-    {:report {:type :fail}}
+              :actual   actual-effect
+              :message  "Wrong effect"}}
 
     :else
     (let [[actual-effect continuation] (continuation coeffect)]
@@ -83,12 +87,14 @@
     (some? continuation)
     {:report {:type     :fail
               :expected nil
-              :actual   continuation}}
+              :actual   actual-effect
+              :message  "Extra effect"}}
 
     (not= return actual-effect)
     {:report {:type     :fail
               :expected return
-              :actual   actual-effect}}
+              :actual   actual-effect
+              :message  "Wrong return"}}
 
     :else
     {:report report}))
