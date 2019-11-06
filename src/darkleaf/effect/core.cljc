@@ -3,7 +3,8 @@
   (:require
    [cloroutine.core :refer [cr]]
    [darkleaf.effect.internal :as i]
-   [clojure.test :as t]))
+   [clojure.test :as t])
+  #?(:cljs (:require-macros [darkleaf.effect.core :refer [eff]])))
 
 (defn ! [x]
   (if (vector? x)
@@ -14,8 +15,6 @@
   `(i/with-kind
      (cr {! i/coeffect} ~@body)
      ::coroutine))
-
-;;TODO: effn, deffn
 
 (defn interpret [effn & args]
   (let [->continuation (fn ->continuation [stack]

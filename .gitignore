@@ -1,2 +1,6 @@
 .cpcache
 .nrepl-port
+/target
+/out
+/.cljs_node_repl
+/.lein-failures
