@@ -274,3 +274,22 @@
       [:done]
       [1 :done]
       [1 2 3 :done 4 5])))
+
+(t/deftest mapv-test
+  (let [interpretator (fn [ef & args]
+                        (loop [[effect continuation] (apply e/loop-factory ef args)]
+                          (if (nil? continuation)
+                            effect
+                            (recur (continuation ::not-used-coeffect)))))
+        inc*          (fn [x]
+                        (eff
+                          (! [:print x])
+                          (inc x)))]
+    (t/are [coll] (= (mapv inc coll)
+                     (interpretator e/mapv inc* coll)
+                     (interpretator e/mapv inc coll))
+      nil
+      []
+      [0]
+      [0 1]
+      [0 1 2])))
