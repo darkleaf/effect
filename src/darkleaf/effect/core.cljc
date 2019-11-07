@@ -1,6 +1,7 @@
 (ns darkleaf.effect.core
-  (:refer-clojure :exclude [test])
+  (:refer-clojure :exclude [test mapv reduce])
   (:require
+   [clojure.core :as c]
    [cloroutine.core :refer [cr]]
    [darkleaf.effect.internal :as i]
    [clojure.test :as t])
@@ -73,7 +74,7 @@
        :continuation  continuation})))
 
 (defn- test-middle-items [ctx items]
-  (reduce test-middle-item ctx items))
+  (c/reduce test-middle-item ctx items))
 
 (defn- test-last-item [{:keys [report actual-effect continuation]}
                        {:keys [return final-effect]}]
@@ -118,3 +119,25 @@
         (test-last-item last-item)
         :report
         (t/do-report))))
+
+(defn reduce
+  ([ef coll]
+   (eff
+     (case (count coll)
+       0 (! (ef))
+       1 (first coll)
+       (! (reduce ef (first coll) (rest coll))))))
+  ([ef val coll]
+   (eff
+     (loop [acc val
+            coll coll]
+       (cond
+         (reduced? acc)
+         (unreduced acc)
+
+         (empty? coll)
+         acc
+
+         :else
+         (recur (! (ef acc (first coll)))
+                (rest coll)))))))

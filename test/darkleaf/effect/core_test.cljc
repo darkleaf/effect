@@ -231,3 +231,46 @@
                               (let [[state coeffect] (effect-!>coeffect state effect)]
                                 (recur state (continuation coeffect)))))]
     (t/is (= [1 3 3] result))))
+
+(t/deftest reduce-test
+  (let [interpretator (fn [ef & args]
+                        (loop [[effect continuation] (apply e/loop-factory ef args)]
+                          (if (nil? continuation)
+                            effect
+                            (recur (continuation ::not-used-coeffect)))))
+        str*          (fn [& args]
+                        (eff
+                          (! [:print args])
+                          (apply str args)))
+        with-reduced (fn [acc v]
+                       (if (= :done v)
+                         (reduced v)
+                         v))
+        with-reduced* (fn [_ v]
+                        (eff
+                          (! [:print v])
+                          (if (= :done v)
+                            (reduced v)
+                            v)))]
+    (t/are [coll] (= (reduce str coll)
+                     (interpretator e/reduce str* coll)
+                     (interpretator e/reduce str coll))
+      nil
+      []
+      [:a]
+      [:a :b]
+      [:a :b :c])
+    (t/are [val coll] (= (reduce str val coll)
+                         (interpretator e/reduce str* val coll)
+                         (interpretator e/reduce str val coll))
+
+      "acc" []
+      "acc" [:a]
+      "acc" [:a :b]
+      "acc" [:a :b :c])
+    (t/are [coll] (= (reduce with-reduced coll)
+                     (interpretator e/reduce with-reduced* coll)
+                     (interpretator e/reduce with-reduced coll))
+      [:done]
+      [1 :done]
+      [1 2 3 :done 4 5])))
