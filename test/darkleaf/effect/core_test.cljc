@@ -281,15 +281,23 @@
                           (if (nil? continuation)
                             effect
                             (recur (continuation ::not-used-coeffect)))))
-        inc*          (fn [x]
+        str*          (fn [& args]
                         (eff
-                          (! [:print x])
-                          (inc x)))]
-    (t/are [coll] (= (mapv inc coll)
-                     (interpretator e/mapv inc* coll)
-                     (interpretator e/mapv inc coll))
-      nil
-      []
-      [0]
-      [0 1]
-      [0 1 2])))
+                          (! [:print args])
+                          (apply str args)))]
+    (t/are [colls] (= (apply mapv str colls)
+                      (apply interpretator e/mapv str* colls)
+                      (apply interpretator e/mapv str colls))
+      [nil]
+      [[]]
+      [[0]]
+      [[0 1]]
+      [[0 1 2]]
+      [#{1 2 3}]
+      [{:a 1, :b 2}]
+
+      [nil nil]
+      [[] []]
+      [[0] [1 2]]
+      [[0 1] [2]]
+      [#{1 2} [3 4]])))

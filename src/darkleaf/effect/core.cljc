@@ -142,11 +142,15 @@
          (recur (! (ef acc (first coll)))
                 (rest coll)))))))
 
-(defn mapv [ef coll]
-  (eff
-    (let [reducer (fn [acc item]
-                    (eff
-                      (conj! acc (! (ef item)))))
-          acc     (transient [])
-          result  (! (reduce reducer acc coll))]
-      (persistent! result))))
+(defn mapv
+  ([ef coll]
+   (eff
+     (let [reducer (fn [acc item]
+                     (eff
+                       (conj! acc (! (ef item)))))
+           acc     (transient [])
+           result  (! (reduce reducer acc coll))]
+       (persistent! result))))
+  ([ef coll & colls]
+   (->> (apply map list coll colls)
+        (mapv #(apply ef %)))))
