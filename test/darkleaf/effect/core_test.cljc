@@ -151,6 +151,20 @@
                 {:return :ok}]]
     (e/test ef script)))
 
+(t/deftest effect-as-value-script
+  (let [effect [:prn 1]
+        ef     (fn []
+                 (eff
+                   (! effect)
+                   (! (assoc effect 1 2))))
+        script [{:args []}
+                {:effect   effect
+                 :coeffect nil}
+                {:effect  [:prn 2]
+                 :coeffet nil}
+                {:return nil}]]
+    (e/test ef script)))
+
 #?(:cljs
    (t/deftest async-example
      (let [effect-!>coeffect (fn [[tag value :as effect]]
