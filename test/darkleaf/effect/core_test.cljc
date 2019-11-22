@@ -4,12 +4,12 @@
    [clojure.test :as t]))
 
 (t/deftest simple-use-case
-  (let [effect-!>coeffect (fn [[tag value :as effect]]
-                            (case tag
-                              :read "John"))
-        ef                (fn [x]
+  (let [ef                (fn [x]
                             (eff
                               (str x " " (! [:read]))))
+        effect-!>coeffect (fn [[tag value :as effect]]
+                            (case tag
+                              :read "John"))
         result            (loop [[effect continuation] (e/loop-factory ef "Hi!")]
                             (if (nil? continuation)
                               effect
@@ -17,11 +17,7 @@
     (t/is (= "Hi! John" result))))
 
 (t/deftest stack-use-case
-  (let [effect-!>coeffect (fn [[tag value :as effect]]
-                            (case tag
-                              :prn  nil
-                              :read "input string"))
-        nested-ef         (fn [x]
+  (let [nested-ef         (fn [x]
                             (eff
                               (! [:prn x])
                               (! [:read])))
@@ -29,6 +25,10 @@
                             (eff
                               (! [:prn :ef])
                               (! (nested-ef x))))
+        effect-!>coeffect (fn [[tag value :as effect]]
+                            (case tag
+                              :prn  nil
+                              :read "input string"))
         result            (loop [[effect continuation] (e/loop-factory ef "some val")]
                             (if (nil? continuation)
                               effect
@@ -167,26 +167,26 @@
 
 #?(:cljs
    (t/deftest async-example
-     (let [effect-!>coeffect (fn [[tag value :as effect]]
+     (let [ef                (fn []
+                               (eff
+                                 (loop [values []
+                                        i      0]
+                                   (if (= i 2)
+                                     values
+                                     (let [value (! [:read])]
+                                       (! [:print value])
+                                       (recur (conj values value)
+                                              (inc i)))))))
+           effect-!>coeffect (fn [[tag value :as effect]]
                                (case tag
                                  :read  "value"
                                  :print nil))
-           ef                (fn []
-                               (eff
-                                (loop [values []
-                                       i      0]
-                                  (if (= i 2)
-                                    values
-                                    (let [value (! [:read])]
-                                      (! [:print value])
-                                      (recur (conj values value)
-                                             (inc i)))))))
-           main-loop (fn main-loop [[effect continuation] callback]
-                       (if (nil? continuation)
-                         (callback effect)
-                         (js/setTimeout #(main-loop (continuation (effect-!>coeffect effect))
-                                                    callback)
-                                        0)))]
+           main-loop         (fn main-loop [[effect continuation] callback]
+                               (if (nil? continuation)
+                                 (callback effect)
+                                 (js/setTimeout #(main-loop (continuation (effect-!>coeffect effect))
+                                                            callback)
+                                                0)))]
        (t/async done
                 (main-loop (e/loop-factory ef)
                            (fn [result]
@@ -194,14 +194,14 @@
                              (done)))))))
 
 (t/deftest maybe-example
-  (let [effect-!>coeffect (fn [[tag value :as effect]]
+  (let [ef                (fn [x]
+                            (eff
+                              (+ 5 (! [:maybe x]))))
+        effect-!>coeffect (fn [[tag value :as effect]]
                             (case tag
                               :maybe (if (nil? value)
                                        (reduced nil)
-                                       value)))
-        ef                (fn [x]
-                            (eff
-                              (+ 5 (! [:maybe x]))))]
+                                       value)))]
     (t/testing "interpretator"
       (let [interpretator (fn [x]
                             (loop [[effect continuation] (e/loop-factory ef x)]
@@ -226,18 +226,18 @@
           (e/test ef script))))))
 
 (t/deftest state-example
-  (let [effect-!>coeffect (fn [state [tag f & args :as effect]]
-                            (case tag
-                              :state/get    [state state]
-                              :state/update (let [new-state (apply f state args)]
-                                              [new-state new-state])
-                              :io/print     [state nil]))
-        ef                (fn []
+  (let [ef                (fn []
                             (eff
                               (! [:io/print "hi"])
                               [(! [:state/update inc])
                                (! [:state/update + 2])
                                (! [:state/get])]))
+        effect-!>coeffect (fn [state [tag f & args :as effect]]
+                            (case tag
+                              :state/get    [state state]
+                              :state/update (let [new-state (apply f state args)]
+                                              [new-state new-state])
+                              :io/print     [state nil]))
         result            (loop [state                 0
                                  [effect continuation] (e/loop-factory ef)]
                             (if (nil? continuation)
