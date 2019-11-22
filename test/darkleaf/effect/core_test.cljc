@@ -6,15 +6,17 @@
 (t/deftest simple-use-case
   (let [ef                (fn [x]
                             (eff
-                              (str x " " (! [:read]))))
+                              (let [rnd (! [:random])]
+                                (- (* 2. rnd)
+                                   1.))))
         effect-!>coeffect (fn [[tag value :as effect]]
                             (case tag
-                              :read "John"))
+                              :random 0.5))
         result            (loop [[effect continuation] (e/loop-factory ef "Hi!")]
                             (if (nil? continuation)
                               effect
                               (recur (continuation (effect-!>coeffect effect)))))]
-    (t/is (= "Hi! John" result))))
+    (t/is (= 0.0 result))))
 
 (t/deftest stack-use-case
   (let [nested-ef         (fn [x]
