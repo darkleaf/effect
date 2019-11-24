@@ -4,7 +4,7 @@
    [clojure.test :as t]))
 
 (t/deftest simple-use-case
-  (let [ef                (fn [x]
+  (let [ef                (fn []
                             (eff
                               (let [rnd (! [:random])]
                                 (- (* 2. rnd)
@@ -12,7 +12,7 @@
         effect-!>coeffect (fn [[tag value :as effect]]
                             (case tag
                               :random 0.5))
-        result            (loop [[effect continuation] (e/loop-factory ef "Hi!")]
+        result            (loop [[effect continuation] (e/loop-factory ef)]
                             (if (nil? continuation)
                               effect
                               (recur (continuation (effect-!>coeffect effect)))))]
