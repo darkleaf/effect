@@ -1,6 +1,8 @@
 (ns darkleaf.effect.core-test
   (:require
    [darkleaf.effect.core :as e :refer [eff !]]
+   #?(:clj  [clojure.core.match :refer [match]]
+      :cljs [cljs.core.match :refer-macros [match]])
    [clojure.test :as t]))
 
 (t/deftest simple-use-case
@@ -9,9 +11,9 @@
                               (let [rnd (! [:random])]
                                 (- (* 2. rnd)
                                    1.))))
-        effect-!>coeffect (fn [[tag value :as effect]]
-                            (case tag
-                              :random 0.5))
+        effect-!>coeffect (fn [effect]
+                            (match effect
+                                   [:random] 0.5))
         result            (loop [[effect continuation] (e/loop-factory ef)]
                             (if (nil? continuation)
                               effect
@@ -27,10 +29,10 @@
                             (eff
                               (! [:prn :ef])
                               (! (nested-ef x))))
-        effect-!>coeffect (fn [[tag value :as effect]]
-                            (case tag
-                              :prn  nil
-                              :read "input string"))
+        effect-!>coeffect (fn [effect]
+                            (match effect
+                                   [:prn _]  nil
+                                   [:read]   "input string"))
         result            (loop [[effect continuation] (e/loop-factory ef "some val")]
                             (if (nil? continuation)
                               effect
@@ -179,10 +181,10 @@
                                        (! [:print value])
                                        (recur (conj values value)
                                               (inc i)))))))
-           effect-!>coeffect (fn [[tag value :as effect]]
-                               (case tag
-                                 :read  "value"
-                                 :print nil))
+           effect-!>coeffect (fn [effect]
+                               (match effect
+                                      [:read]    "value"
+                                      [:print _] nil))
            main-loop         (fn main-loop [[effect continuation] callback]
                                (if (nil? continuation)
                                  (callback effect)
@@ -199,11 +201,10 @@
   (let [ef                (fn [x]
                             (eff
                               (+ 5 (! [:maybe x]))))
-        effect-!>coeffect (fn [[tag value :as effect]]
-                            (case tag
-                              :maybe (if (nil? value)
-                                       (reduced nil)
-                                       value)))]
+        effect-!>coeffect (fn [effect]
+                            (match effect
+                                   [:maybe nil] (reduced nil)
+                                   [:maybe val] val))]
     (t/testing "interpretator"
       (let [interpretator (fn [x]
                             (loop [[effect continuation] (e/loop-factory ef x)]
@@ -234,12 +235,17 @@
                               [(! [:state/update inc])
                                (! [:state/update + 2])
                                (! [:state/get])]))
-        effect-!>coeffect (fn [state [tag f & args :as effect]]
-                            (case tag
-                              :state/get    [state state]
-                              :state/update (let [new-state (apply f state args)]
-                                              [new-state new-state])
-                              :io/print     [state nil]))
+        effect-!>coeffect (fn [state effect]
+                            (match effect
+                                   [:state/get]
+                                   [state state]
+
+                                   [:state/update f & args]
+                                   (let [new-state (apply f state args)]
+                                     [new-state new-state])
+
+                                   [:io/print _]
+                                   [state nil]))
         result            (loop [state                 0
                                  [effect continuation] (e/loop-factory ef)]
                             (if (nil? continuation)
