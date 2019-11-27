@@ -23,27 +23,28 @@
      (cr {! i/coeffect} ~@body)
      ::coroutine))
 
+(defn- stack->continuation [stack]
+  (fn [coeffect]
+    (loop [stack    stack
+           coeffect coeffect]
+      (if (empty? stack)
+        [coeffect nil]
+        (let [coroutine (peek stack)
+              val       (i/with-coeffect coeffect coroutine)]
+          (case (i/kind val)
+            ::effect    [val (stack->continuation stack)]
+            ::coroutine (recur (conj stack val) nil)
+            ::wrapped   (recur  stack (first val))
+            ;; coroutine is finished
+            (recur (pop stack) val)))))))
+
 (defn continuation [effn]
   (fn [args]
-    (let [->continuation (fn ->continuation [stack]
-                           (fn continuation [coeffect]
-                             (loop [stack    stack
-                                    coeffect coeffect]
-                               (if (empty? stack)
-                                 [coeffect nil]
-                                 (let [coroutine (peek stack)
-                                       val       (i/with-coeffect coeffect coroutine)]
-                                   (case (i/kind val)
-                                     ::effect    [val (->continuation stack)]
-                                     ::coroutine (recur (conj stack val) nil)
-                                     ::wrapped   (recur  stack (first val))
-                                     ;; coroutine is finished
-                                     (recur (pop stack) val)))))))
-          coroutine      (apply effn args)
-          stack          (list coroutine)
-          continuation   (->continuation stack)
-          coeffect       ::not-used]
-      (continuation coeffect))))
+    (let [coroutine (apply effn args)
+          stack     (list coroutine)
+          cont      (stack->continuation stack)
+          coeffect  ::not-used]
+      (cont coeffect))))
 
 (defn wrap-reduced [continuation]
   (when (some? continuation)
