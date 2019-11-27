@@ -23,29 +23,60 @@
      (cr {! i/coeffect} ~@body)
      ::coroutine))
 
-(defn loop-factory [effn & args]
-  (let [->continuation (fn ->continuation [stack]
-                         (fn continuation [coeffect]
-                           (loop [stack    stack
-                                  coeffect coeffect]
-                             (if (empty? stack)
-                               [coeffect nil]
-                               (let [coroutine (peek stack)
-                                     val       (i/with-coeffect coeffect coroutine)]
-                                 (case (i/kind val)
-                                   ::effect    [val (->continuation stack)]
-                                   ::coroutine (recur (conj stack val) nil)
-                                   ::wrapped   (recur  stack (first val))
-                                   ;; coroutine is finished
-                                   (recur (pop stack) val)))))))
-        coroutine      (apply effn args)
-        stack          (list coroutine)
-        continuation   (->continuation stack)
-        coeffect       ::not-used]
-    (continuation coeffect)))
+(defn continuation [effn]
+  (fn [args]
+    (let [->continuation (fn ->continuation [stack]
+                           (fn continuation [coeffect]
+                             (loop [stack    stack
+                                    coeffect coeffect]
+                               (if (empty? stack)
+                                 [coeffect nil]
+                                 (let [coroutine (peek stack)
+                                       val       (i/with-coeffect coeffect coroutine)]
+                                   (case (i/kind val)
+                                     ::effect    [val (->continuation stack)]
+                                     ::coroutine (recur (conj stack val) nil)
+                                     ::wrapped   (recur  stack (first val))
+                                     ;; coroutine is finished
+                                     (recur (pop stack) val)))))))
+          coroutine      (apply effn args)
+          stack          (list coroutine)
+          continuation   (->continuation stack)
+          coeffect       ::not-used]
+      (continuation coeffect))))
 
-(defn- test-first-item [{:keys [report effn]} {:keys [args]}]
-  (let [[effect continuation] (apply loop-factory effn args)]
+(defn wrap-reduced [continuation]
+  (when (some? continuation)
+    (fn [coeffect]
+      (if (reduced? coeffect)
+        [(unreduced coeffect) nil]
+        (let [[effect continuation] (continuation coeffect)]
+          [effect (wrap-reduced continuation)])))))
+
+(defn wrap-context [continuation]
+  (when (some? continuation)
+    (fn [[context coeffect]]
+      (let [[effect continuation] (continuation coeffect)]
+        [[context effect] (wrap-context continuation)]))))
+
+(defn perform
+  ([effect-!>coeffect continuation coeffect-or-args]
+   (loop [[effect continuation] (continuation coeffect-or-args)]
+     (if (nil? continuation)
+       effect
+       (recur (continuation (effect-!>coeffect effect))))))
+  ([effect-!>coeffect continuation coeffect-or-args respond raise]
+   (let [[effect continuation] (continuation coeffect-or-args)]
+     (if (nil? continuation)
+       (respond effect)
+       (effect-!>coeffect effect
+                          (fn [coeffect]
+                            (perform effect-!>coeffect continuation coeffect
+                                     respond raise))
+                          raise)))))
+
+(defn- test-first-item [{:keys [report continuation]} {:keys [args]}]
+  (let [[effect continuation] (continuation args)]
     {:report        report
      :actual-effect effect
      :continuation  continuation}))
@@ -110,10 +141,11 @@
 (defn test [effn script]
   {:pre [(fn? effn)
          (<= 2 (count script))]}
-  (let [first-item   (first script)
+  (let [cont         (continuation effn)
+        first-item   (first script)
         middle-items (-> script rest butlast)
         last-item    (last script)]
-    (-> {:effn effn, :report {:type :pass}}
+    (-> {:continuation cont, :report {:type :pass}}
         (test-first-item first-item)
         (test-middle-items middle-items)
         (test-last-item last-item)

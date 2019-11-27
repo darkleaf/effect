@@ -6,19 +6,47 @@
    [clojure.test :as t]))
 
 (t/deftest simple-use-case
-  (let [ef                (fn []
+  (let [ef                (fn [x]
                             (eff
                               (let [rnd (! [:random])]
-                                (- (* 2. rnd)
-                                   1.))))
+                                (- (* 2. x rnd)
+                                   x))))
         effect-!>coeffect (fn [effect]
                             (match effect
-                                   [:random] 0.5))
-        result            (loop [[effect continuation] (e/loop-factory ef)]
-                            (if (nil? continuation)
-                              effect
-                              (recur (continuation (effect-!>coeffect effect)))))]
-    (t/is (= 0.0 result))))
+                                   [:random] 0.75))
+        continuation      (e/continuation ef)
+        args              [1]]
+    (t/is (= 0.5 (e/perform effect-!>coeffect continuation args)))))
+
+#?(:cljs
+   (defn- ->async-effect-!>coeeffect [effect-!>coeffect]
+     (fn [effect respond raise]
+       (js/setTimeout (fn []
+                        (respond (effect-!>coeffect effect)))
+                      0))))
+
+#?(:cljs
+   (t/deftest async-use-case
+     (t/async done
+              (let [ef                (fn [x]
+                                        (eff
+                                          (let [rnd (! [:random])]
+                                            (- (* 2. x rnd)
+                                               x))))
+                    effect-!>coeffect (fn [effect]
+                                        (match effect
+                                               [:random] 0.75))
+                    effect-!>coeffect (->async-effect-!>coeeffect effect-!>coeffect)
+                    continuation      (e/continuation ef)
+                    args              [1]]
+
+                (e/perform effect-!>coeffect continuation args
+                           (fn [result]
+                             (t/is (= 0.5 result))
+                             (done))
+                           (fn [error]
+                             (t/is false)
+                             (done)))))))
 
 (t/deftest stack-use-case
   (let [nested-ef         (fn [x]
@@ -33,11 +61,8 @@
                             (match effect
                                    [:prn _]  nil
                                    [:read]   "input string"))
-        result            (loop [[effect continuation] (e/loop-factory ef "some val")]
-                            (if (nil? continuation)
-                              effect
-                              (recur (continuation (effect-!>coeffect effect)))))]
-    (t/is (= "input string" result))))
+        continuation      (e/continuation ef)]
+    (t/is (= "input string" (e/perform effect-!>coeffect continuation ["some val"])))))
 
 (t/deftest script
   (let [ef (fn [x]
@@ -169,34 +194,6 @@
                 {:return nil}]]
     (e/test ef script)))
 
-#?(:cljs
-   (t/deftest async-example
-     (let [ef                (fn []
-                               (eff
-                                 (loop [values []
-                                        i      0]
-                                   (if (= i 2)
-                                     values
-                                     (let [value (! [:read])]
-                                       (! [:print value])
-                                       (recur (conj values value)
-                                              (inc i)))))))
-           effect-!>coeffect (fn [effect]
-                               (match effect
-                                      [:read]    "value"
-                                      [:print _] nil))
-           main-loop         (fn main-loop [[effect continuation] callback]
-                               (if (nil? continuation)
-                                 (callback effect)
-                                 (js/setTimeout #(main-loop (continuation (effect-!>coeffect effect))
-                                                            callback)
-                                                0)))]
-       (t/async done
-                (main-loop (e/loop-factory ef)
-                           (fn [result]
-                             (t/is (= ["value" "value"] result))
-                             (done)))))))
-
 (t/deftest maybe-example
   (let [ef                (fn [x]
                             (eff
@@ -206,16 +203,10 @@
                                    [:maybe nil] (reduced nil)
                                    [:maybe val] val))]
     (t/testing "interpretator"
-      (let [interpretator (fn [x]
-                            (loop [[effect continuation] (e/loop-factory ef x)]
-                              (if (nil? continuation)
-                                effect
-                                (let [coeffect (effect-!>coeffect effect)]
-                                  (if (reduced? coeffect)
-                                    (unreduced coeffect)
-                                    (recur (continuation coeffect)))))))]
-        (t/is (= 6 (interpretator 1)))
-        (t/is (= nil (interpretator nil)))))
+      (let [continuation (-> (e/continuation ef)
+                             (e/wrap-reduced))]
+        (t/is (= 6 (e/perform effect-!>coeffect continuation [1])))
+        (t/is (= nil (e/perform effect-!>coeffect continuation [nil])))))
     (t/testing "script"
       (t/testing :just
         (let [script [{:args [1]}
@@ -231,43 +222,35 @@
 (t/deftest state-example
   (let [ef                (fn []
                             (eff
-                              (! [:io/print "hi"])
-                              [(! [:state/update inc])
-                               (! [:state/update + 2])
-                               (! [:state/get])]))
-        effect-!>coeffect (fn [state effect]
+                              [(! [:update inc])
+                               (! [:update + 2])
+                               (! [:get])]))
+        effect-!>coeffect (fn [[context effect]]
                             (match effect
-                                   [:state/get]
-                                   [state state]
+                                   [:get]
+                                   [context (:state context)]
 
-                                   [:state/update f & args]
-                                   (let [new-state (apply f state args)]
-                                     [new-state new-state])
-
-                                   [:io/print _]
-                                   [state nil]))
-        result            (loop [state                 0
-                                 [effect continuation] (e/loop-factory ef)]
-                            (if (nil? continuation)
-                              effect
-                              (let [[state coeffect] (effect-!>coeffect state effect)]
-                                (recur state (continuation coeffect)))))]
-    (t/is (= [1 3 3] result))))
+                                   [:update f & args]
+                                   (let [context (apply update context :state f args)]
+                                     [context (:state context)])))
+        continuation (-> (e/continuation ef)
+                         (e/wrap-context))]
+    (t/is (= [{:state 3} [1 3 3]]
+             (e/perform effect-!>coeffect continuation [{:state 0} []])))))
 
 (t/deftest reduce-test
   (let [interpretator (fn [ef & args]
-                        (loop [[effect continuation] (apply e/loop-factory ef args)]
-                          (if (nil? continuation)
-                            effect
-                            (recur (continuation ::not-used-coeffect)))))
+                        (let [continuation      (e/continuation ef)
+                              effect-!>coeffect (constantly ::not-used-coeffect)]
+                          (e/perform effect-!>coeffect continuation args)))
         str*          (fn [& args]
                         (eff
                           (! [:print args])
                           (apply str args)))
-        with-reduced (fn [acc v]
-                       (if (= :done v)
-                         (reduced v)
-                         v))
+        with-reduced  (fn [acc v]
+                        (if (= :done v)
+                          (reduced v)
+                          v))
         with-reduced* (fn [_ v]
                         (eff
                           (! [:print v])
@@ -299,10 +282,9 @@
 
 (t/deftest mapv-test
   (let [interpretator (fn [ef & args]
-                        (loop [[effect continuation] (apply e/loop-factory ef args)]
-                          (if (nil? continuation)
-                            effect
-                            (recur (continuation ::not-used-coeffect)))))
+                        (let [continuation      (e/continuation ef)
+                              effect-!>coeffect (constantly ::not-used-coeffect)]
+                          (e/perform effect-!>coeffect continuation args)))
         str*          (fn [& args]
                         (eff
                           (! [:print args])
