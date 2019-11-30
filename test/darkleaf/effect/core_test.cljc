@@ -238,6 +238,43 @@
     (t/is (= [{:state 3} [1 3 3]]
              (e/perform effect-!>coeffect continuation [{:state 0} []])))))
 
+(t/deftest suspend-resume
+  (let [ef                (fn [x]
+                            (eff
+                              (let [a (! [:suspend])
+                                    b (! [:effect])
+                                    c (! [:suspend])]
+                                [x a b c])))
+        effect-!>coeffect (fn [effect]
+                            (match effect
+                                   [:effect]  :effect-coeffect
+                                   [:suspend] ::e/suspend))
+        continuation      (-> (e/continuation ef)
+                              (e/wrap-log))
+        suspended         (e/perform effect-!>coeffect continuation [:arg])
+        _                 (t/is (= [::e/suspended [{:coeffect    [:arg]
+                                                    :next-effect [:suspend]}]]
+                                   suspended))
+        log               (last suspended)
+        continuation      (-> (e/continuation ef)
+                              (e/wrap-log)
+                              (e/apply-log log))
+        suspended         (e/perform effect-!>coeffect continuation :value-1)
+        _                 (t/is (= [::e/suspended [{:coeffect    [:arg]
+                                                    :next-effect [:suspend]}
+                                                   {:coeffect    :value-1
+                                                    :next-effect [:effect]}
+                                                   {:coeffect    :effect-coeffect
+                                                    :next-effect [:suspend]}]]
+                                   suspended))
+        log               (last suspended)
+        continuation      (-> (e/continuation ef)
+                              (e/wrap-log)
+                              (e/apply-log log))
+        done              (e/perform effect-!>coeffect continuation :value-2)]
+    (t/is (= [::e/done [:arg :value-1 :effect-coeffect :value-2]]
+             done))))
+
 (t/deftest reduce-test
   (let [interpretator (fn [ef & args]
                         (let [continuation      (e/continuation ef)

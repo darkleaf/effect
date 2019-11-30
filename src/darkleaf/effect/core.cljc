@@ -60,6 +60,31 @@
       (let [[effect continuation] (continuation coeffect)]
         [[context effect] (wrap-context continuation)]))))
 
+(defn wrap-log [continuation]
+  (let [log (-> continuation
+                meta
+                (get ::log #?(:clj  clojure.lang.PersistentQueue/EMPTY
+                              :cljs cljs.core/PersistentQueue.EMPTY)))]
+    (fn [coeffect]
+      (if (= ::suspend coeffect)
+        [[::suspended log] nil]
+        (let [[effect continuation] (continuation coeffect)]
+          (if (some? continuation)
+            [effect (-> continuation
+                        (vary-meta assoc ::log (conj log {:coeffect    coeffect
+                                                          :next-effect effect}))
+                        wrap-log)]
+            [[::done effect] nil]))))))
+
+(defn apply-log [continuation log]
+  (if (seq log)
+    (let [{:keys [coeffect next-effect]} (peek log)
+          [effect continuation]          (continuation coeffect)]
+      (if (not= next-effect effect)
+        (throw (ex-info "aaaa" {})))
+      (recur continuation (pop log)))
+    continuation))
+
 (defn perform
   ([effect-!>coeffect continuation coeffect-or-args]
    (loop [[effect continuation] (continuation coeffect-or-args)]
