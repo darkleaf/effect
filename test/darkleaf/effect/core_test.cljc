@@ -250,15 +250,15 @@
                                    [:effect]  :effect-coeffect
                                    [:suspend] ::e/suspend))
         continuation      (-> (e/continuation ef)
-                              (e/wrap-log))
+                              (e/wrap-suspend))
         suspended         (e/perform effect-!>coeffect continuation [:arg])
         _                 (t/is (= [::e/suspended [{:coeffect    [:arg]
                                                     :next-effect [:suspend]}]]
                                    suspended))
         log               (last suspended)
         continuation      (-> (e/continuation ef)
-                              (e/wrap-log)
-                              (e/apply-log log))
+                              (e/wrap-suspend)
+                              (e/resume log))
         suspended         (e/perform effect-!>coeffect continuation :value-1)
         _                 (t/is (= [::e/suspended [{:coeffect    [:arg]
                                                     :next-effect [:suspend]}
@@ -269,8 +269,8 @@
                                    suspended))
         log               (last suspended)
         continuation      (-> (e/continuation ef)
-                              (e/wrap-log)
-                              (e/apply-log log))
+                              (e/wrap-suspend)
+                              (e/resume log))
         done              (e/perform effect-!>coeffect continuation :value-2)]
     (t/is (= [::e/done [:arg :value-1 :effect-coeffect :value-2]]
              done))))
