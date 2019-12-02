@@ -39,7 +39,6 @@
                     effect-!>coeffect (->async-effect-!>coeeffect effect-!>coeffect)
                     continuation      (e/continuation ef)
                     args              [1]]
-
                 (e/perform effect-!>coeffect continuation args
                            (fn [result]
                              (t/is (= 0.5 result))
@@ -65,26 +64,27 @@
     (t/is (= "input string" (e/perform effect-!>coeffect continuation ["some val"])))))
 
 (t/deftest script
-  (let [ef (fn [x]
-             (eff
-               (! [:some-eff x])))]
+  (let [ef           (fn [x]
+                       (eff
+                         (! [:some-eff x])))
+        continuation (e/continuation ef)]
     (t/testing "correct"
       (let [script [{:args [:value]}
                     {:effect   [:some-eff :value]
                      :coeffect :other-value}
                     {:return :other-value}]]
-        (e/test ef script)))
+        (e/test continuation script)))
     (t/testing "final-effect"
       (let [script [{:args [:value]}
                     {:final-effect [:some-eff :value]}]]
-        (e/test ef script)))
+        (e/test continuation script)))
     (t/testing "wrong effect"
       (let [script [{:args [:value]}
                     {:effect   [:wrong]
                      :coeffect :other-value}
                     {:return :other-value}]
             report (with-redefs [t/do-report identity]
-                     (e/test ef script))]
+                     (e/test continuation script))]
         (t/is (= {:type     :fail
                   :expected [:wrong]
                   :actual   [:some-eff :value]
@@ -96,7 +96,7 @@
                      :coeffect :other-value}
                     {:return :wrong}]
             report (with-redefs [t/do-report identity]
-                     (e/test ef script))]
+                     (e/test continuation script))]
         (t/is (= {:type     :fail
                   :expected :wrong
                   :actual   :other-value
@@ -106,7 +106,7 @@
       (let [script [{:args [:value]}
                     {:final-effect [:wrong]}]
             report (with-redefs [t/do-report identity]
-                     (e/test ef script))]
+                     (e/test continuation script))]
         (t/is (= {:type     :fail,
                   :expected [:wrong],
                   :actual   [:some-eff :value],
@@ -116,7 +116,7 @@
       (let [script [{:args [:value]}
                     {:return :wrong}]
             report (with-redefs [t/do-report identity]
-                     (e/test ef script))]
+                     (e/test continuation script))]
         (t/is (=  {:type     :fail
                    :expected nil
                    :actual   [:some-eff :value]
@@ -130,7 +130,7 @@
                      :coeffect :some-value}
                     {:return :some-other-value}]
             report (with-redefs [t/do-report identity]
-                     (e/test ef script))]
+                     (e/test continuation script))]
         (t/is (= {:type     :fail
                   :expected [:extra-eff :value]
                   :actual   nil
@@ -138,61 +138,65 @@
                  report))))))
 
 (t/deftest trivial-script
-  (let [ef     (fn [x]
-                 (eff
-                   x))
-        script [{:args [:value]}
-                {:return :value}]]
-      (e/test ef script)))
+  (let [ef           (fn [x]
+                       (eff
+                         x))
+        continuation (e/continuation ef)
+        script       [{:args [:value]}
+                      {:return :value}]]
+      (e/test continuation script)))
 
 (t/deftest fallback-script
-  (let [ef     (fn [x]
-                 (eff
-                   (! (inc x))
-                   (! [:eff])
-                   (! (dec x))))
-        script [{:args [0]}
-                {:effect   [:eff]
-                 :coeffect nil}
-                {:return -1}]]
-    (e/test ef script)))
+  (let [ef           (fn [x]
+                       (eff
+                         (! (inc x))
+                         (! [:eff])
+                         (! (dec x))))
+        continuation (e/continuation ef)
+        script       [{:args [0]}
+                      {:effect   [:eff]
+                       :coeffect nil}
+                      {:return -1}]]
+    (e/test continuation script)))
 
 (t/deftest stack-script
-  (let [ef1    (fn []
-                 (eff
-                   (doseq [i (range 2)]
-                     (! [:prn i]))))
-        ef2    (fn [x]
-                 (eff
-                   (! [:prn x])
-                   (! (ef1))
-                   :ok))
-        ef     (fn []
-                 (eff
-                   (! (ef2 "foo"))))
-        script [{:args []}
-                {:effect   [:prn "foo"]
-                 :coeffect nil}
-                {:effect   [:prn 0]
-                 :coeffect nil}
-                {:effect   [:prn 1]
-                 :coeffect nil}
-                {:return :ok}]]
-    (e/test ef script)))
+  (let [ef1          (fn []
+                       (eff
+                         (doseq [i (range 2)]
+                           (! [:prn i]))))
+        ef2          (fn [x]
+                       (eff
+                         (! [:prn x])
+                         (! (ef1))
+                         :ok))
+        ef           (fn []
+                       (eff
+                         (! (ef2 "foo"))))
+        continuation (e/continuation ef)
+        script       [{:args []}
+                      {:effect   [:prn "foo"]
+                       :coeffect nil}
+                      {:effect   [:prn 0]
+                       :coeffect nil}
+                      {:effect   [:prn 1]
+                       :coeffect nil}
+                      {:return :ok}]]
+    (e/test continuation script)))
 
 (t/deftest effect-as-value-script
-  (let [effect [:prn 1]
-        ef     (fn []
-                 (eff
-                   (! effect)
-                   (! (assoc effect 1 2))))
-        script [{:args []}
-                {:effect   effect
-                 :coeffect nil}
-                {:effect  [:prn 2]
-                 :coeffet nil}
-                {:return nil}]]
-    (e/test ef script)))
+  (let [effect       [:prn 1]
+        ef           (fn []
+                       (eff
+                         (! effect)
+                         (! (assoc effect 1 2))))
+        continuation (e/continuation ef)
+        script       [{:args []}
+                      {:effect   effect
+                       :coeffect nil}
+                      {:effect  [:prn 2]
+                       :coeffet nil}
+                      {:return nil}]]
+    (e/test continuation script)))
 
 (t/deftest maybe-example
   (let [ef                (fn [x]
@@ -209,15 +213,17 @@
         (t/is (= nil (e/perform effect-!>coeffect continuation [nil])))))
     (t/testing "script"
       (t/testing :just
-        (let [script [{:args [1]}
-                      {:effect   [:maybe 1]
-                       :coeffect 1}
-                      {:return 6}]]
-          (e/test ef script)))
+        (let [continuation (e/continuation ef)
+              script       [{:args [1]}
+                            {:effect   [:maybe 1]
+                             :coeffect 1}
+                            {:return 6}]]
+          (e/test continuation script)))
       (t/testing :nothing
-        (let [script [{:args [nil]}
-                      {:final-effect [:maybe nil]}]]
-          (e/test ef script))))))
+        (let [continuation (e/continuation ef)
+              script       [{:args [nil]}
+                            {:final-effect [:maybe nil]}]]
+          (e/test continuation script))))))
 
 (t/deftest state-example
   (let [ef                (fn []

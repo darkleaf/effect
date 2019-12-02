@@ -165,14 +165,12 @@
     :else
     {:report report}))
 
-(defn test [effn script]
-  {:pre [(fn? effn)
-         (<= 2 (count script))]}
-  (let [cont         (continuation effn)
-        first-item   (first script)
+(defn test [continuation script]
+  {:pre [(<= 2 (count script))]}
+  (let [first-item   (first script)
         middle-items (-> script rest butlast)
         last-item    (last script)]
-    (-> {:continuation cont, :report {:type :pass}}
+    (-> {:continuation continuation, :report {:type :pass}}
         (test-first-item first-item)
         (test-middle-items middle-items)
         (test-last-item last-item)
