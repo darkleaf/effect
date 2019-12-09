@@ -165,7 +165,7 @@
     :else
     {:report report}))
 
-(defn test [continuation script]
+(defn test* [continuation script]
   {:pre [(<= 2 (count script))]}
   (let [first-item   (first script)
         middle-items (-> script rest butlast)
@@ -174,8 +174,11 @@
         (test-first-item first-item)
         (test-middle-items middle-items)
         (test-last-item last-item)
-        :report
-        (t/do-report))))
+        :report)))
+
+(defn test [continuation script]
+  (-> (test* continuation script)
+      (t/do-report)))
 
 (defn reduce
   ([ef coll]

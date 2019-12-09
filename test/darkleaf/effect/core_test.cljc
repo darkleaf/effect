@@ -82,60 +82,50 @@
       (let [script [{:args [:value]}
                     {:effect   [:wrong]
                      :coeffect :other-value}
-                    {:return :other-value}]
-            report (with-redefs [t/do-report identity]
-                     (e/test continuation script))]
+                    {:return :other-value}]]
         (t/is (= {:type     :fail
                   :expected [:wrong]
                   :actual   [:some-eff :value]
                   :message  "Wrong effect"}
-                 report))))
+                 (e/test* continuation script)))))
     (t/testing "wrong return"
       (let [script [{:args [:value]}
                     {:effect   [:some-eff :value]
                      :coeffect :other-value}
-                    {:return :wrong}]
-            report (with-redefs [t/do-report identity]
-                     (e/test continuation script))]
+                    {:return :wrong}]]
         (t/is (= {:type     :fail
                   :expected :wrong
                   :actual   :other-value
                   :message  "Wrong return"}
-                 report))))
+                 (e/test* continuation script)))))
     (t/testing "wrong final-effect"
       (let [script [{:args [:value]}
-                    {:final-effect [:wrong]}]
-            report (with-redefs [t/do-report identity]
-                     (e/test continuation script))]
+                    {:final-effect [:wrong]}]]
         (t/is (= {:type     :fail,
                   :expected [:wrong],
                   :actual   [:some-eff :value],
                   :message  "Wrong final effect"}
-                 report))))
+                 (e/test* continuation script)))))
     (t/testing "extra effect"
       (let [script [{:args [:value]}
-                    {:return :wrong}]
-            report (with-redefs [t/do-report identity]
-                     (e/test continuation script))]
+                    {:return :wrong}]]
         (t/is (=  {:type     :fail
                    :expected nil
                    :actual   [:some-eff :value]
                    :message  "Extra effect"}
-                  report))))
+                  (e/test* continuation script)))))
     (t/testing "missed effect"
       (let [script [{:args [:value]}
                     {:effect   [:some-eff :value]
                      :coeffect :other-value}
                     {:effect   [:extra-eff :value]
                      :coeffect :some-value}
-                    {:return :some-other-value}]
-            report (with-redefs [t/do-report identity]
-                     (e/test continuation script))]
+                    {:return :some-other-value}]]
         (t/is (= {:type     :fail
                   :expected [:extra-eff :value]
                   :actual   nil
                   :message  "Misssed effect"}
-                 report))))))
+                 (e/test* continuation script)))))))
 
 (t/deftest trivial-script
   (let [ef           (fn [x]
