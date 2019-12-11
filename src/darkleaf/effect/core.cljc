@@ -7,15 +7,14 @@
    [clojure.test :as t])
   #?(:cljs (:require-macros [darkleaf.effect.core :refer [eff]])))
 
+(defn effect [name & args]
+  (-> (apply vector name args)
+      (i/with-kind ::effect)))
+
 (defn ! [x]
-  (cond
-    (vector? x)
-    (i/with-kind x ::effect)
-
-    (= ::coroutine (i/kind x))
-    x
-
-    :else
+  (case (i/kind x)
+    ::effect    x
+    ::coroutine x
     (i/with-kind [x] ::wrapped)))
 
 (defmacro ^{:style/indent :defn} eff [& body]
