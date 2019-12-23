@@ -1,11 +1,11 @@
-(defproject darkleaf/effect "0.0.8"
+(defproject darkleaf/effect "0.0.9"
   :description "Effect system"
   :url "https://github.com/darkleaf/effect/"
   :license {:name "Eclipse Public License"
             :url  "http://www.eclipse.org/legal/epl-v20.html"}
   :dependencies [[org.clojure/clojure "1.10.1" :scope "provided"]
                  [org.clojure/clojurescript "1.10.520" :scope "provided"]
-                 [cloroutine "8"]
+                 [cloroutine "9"]
                  [org.clojure/core.match "0.3.0" :scope "test"]]
   :plugins [[lein-doo "0.1.11"]]
 
