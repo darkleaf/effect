@@ -22,13 +22,22 @@
      (cr {! i/coeffect} ~@body)
      ::coroutine))
 
+(defn- update-head [coll f & args]
+  (if (seq coll)
+    (-> coll
+        (pop)
+        (conj (apply f (peek coll) args)))
+    coll))
+
 (defn- stack->continuation [stack]
   (fn [coeffect]
     (loop [stack    stack
            coeffect coeffect]
       (if (empty? stack)
         [coeffect nil]
-        (let [coroutine (peek stack)
+        (let [stack     (update-head stack (fn copy [mutable-coroutine]
+                                             (mutable-coroutine identity)))
+              coroutine (peek stack)
               val       (i/with-coeffect coeffect coroutine)]
           (case (i/kind val)
             ::effect    [val (stack->continuation stack)]
