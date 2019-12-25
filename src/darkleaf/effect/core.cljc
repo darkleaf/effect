@@ -7,9 +7,8 @@
    [clojure.test :as t])
   #?(:cljs (:require-macros [darkleaf.effect.core :refer [eff]])))
 
-(defn effect [name & args]
-  (-> (apply vector name args)
-      (i/with-kind ::effect)))
+(defn effect [x]
+  (i/with-kind x ::effect))
 
 (defn ! [x]
   (case (i/kind x)

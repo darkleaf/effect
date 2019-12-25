@@ -8,7 +8,7 @@
 (t/deftest simple-use-case
   (let [ef                (fn [x]
                             (eff
-                              (let [rnd (! (effect :random))]
+                              (let [rnd (! (effect [:random]))]
                                 (- (* 2. x rnd)
                                    x))))
         effect-!>coeffect (fn [effect]
@@ -30,7 +30,7 @@
      (t/async done
               (let [ef                (fn [x]
                                         (eff
-                                          (let [rnd (! (effect :random))]
+                                          (let [rnd (! (effect [:random]))]
                                             (- (* 2. x rnd)
                                                x))))
                     effect-!>coeffect (fn [effect]
@@ -50,11 +50,11 @@
 (t/deftest stack-use-case
   (let [nested-ef         (fn [x]
                             (eff
-                              (! (effect :prn x))
-                              (! (effect :read))))
+                              (! (effect [:prn x]))
+                              (! (effect [:read]))))
         ef                (fn [x]
                             (eff
-                              (! (effect :prn :ef))
+                              (! (effect [:prn :ef]))
                               (! (nested-ef x))))
         effect-!>coeffect (fn [effect]
                             (match effect
@@ -66,7 +66,7 @@
 (t/deftest script
   (let [ef           (fn [x]
                        (eff
-                         (! (effect :some-eff x))))
+                         (! (effect [:some-eff x]))))
         continuation (e/continuation ef)]
     (t/testing "correct"
       (let [script [{:args [:value]}
@@ -127,6 +127,25 @@
                   :message  "Misssed effect"}
                  (e/test* continuation script)))))))
 
+(t/deftest types-of-effects
+  (let [ef           (fn []
+                       (eff
+                         (! (effect [:effect-1 :arg]))
+                         (! (effect {:type  :effect-2
+                                     :arg-1 :val}))
+                         (! (effect 'effect-3))
+                         nil))
+        continuation (e/continuation ef)
+        script       [{:args []}
+                      {:effect   [:effect-1 :arg]
+                       :coeffect nil}
+                      {:effect {:type  :effect-2
+                                :arg-1 :val}}
+                      {:effect   'effect-3
+                       :coeffect nil}
+                      {:return nil}]]
+    (e/test continuation script)))
+
 (t/deftest trivial-script
   (let [ef           (fn [x]
                        (eff
@@ -139,7 +158,7 @@
 (t/deftest fallback-script
   (let [ef           (fn [x]
                        (eff
-                         (let [a (! (effect :eff))
+                         (let [a (! (effect [:eff]))
                                b (! (inc x))
                                c (! [:key 1 2])]
                            [a b c])))
@@ -154,10 +173,10 @@
   (let [ef1          (fn []
                        (eff
                          (doseq [i (range 2)]
-                           (! (effect :prn i)))))
+                           (! (effect [:prn i])))))
         ef2          (fn [x]
                        (eff
-                         (! (effect :prn x))
+                         (! (effect [:prn x]))
                          (! (ef1))
                          :ok))
         ef           (fn []
@@ -175,7 +194,7 @@
     (e/test continuation script)))
 
 (t/deftest effect-as-value-script
-  (let [test-effect  (effect :prn 1)
+  (let [test-effect  (effect [:prn 1])
         ef           (fn []
                        (eff
                          (! test-effect)))
@@ -189,7 +208,7 @@
 (t/deftest maybe-example
   (let [ef                (fn [x]
                             (eff
-                              (+ 5 (! (effect :maybe x)))))
+                              (+ 5 (! (effect [:maybe x])))))
         effect-!>coeffect (fn [effect]
                             (match effect
                                    [:maybe nil] (reduced nil)
@@ -216,9 +235,9 @@
 (t/deftest state-example
   (let [ef                (fn []
                             (eff
-                              [(! (effect :update inc))
-                               (! (effect :update + 2))
-                               (! (effect :get))]))
+                              [(! (effect [:update inc]))
+                               (! (effect [:update + 2]))
+                               (! (effect [:get]))]))
         effect-!>coeffect (fn [[context effect]]
                             (match effect
                                    [:get]
@@ -235,9 +254,9 @@
 (t/deftest suspend-resume
   (let [ef                (fn [x]
                             (eff
-                              (let [a (! (effect :suspend))
-                                    b (! (effect :effect))
-                                    c (! (effect :suspend))]
+                              (let [a (! (effect [:suspend]))
+                                    b (! (effect [:effect]))
+                                    c (! (effect [:suspend]))]
                                 [x a b c])))
         effect-!>coeffect (fn [effect]
                             (match effect
@@ -276,7 +295,7 @@
                           (e/perform effect-!>coeffect continuation args)))
         str*          (fn [& args]
                         (eff
-                          (! (effect :print args))
+                          (! (effect [:print args]))
                           (apply str args)))
         with-reduced  (fn [acc v]
                         (if (= :done v)
@@ -284,7 +303,7 @@
                           v))
         with-reduced* (fn [_ v]
                         (eff
-                          (! [:print v])
+                          (! (effect [:print v]))
                           (if (= :done v)
                             (reduced v)
                             v)))]
@@ -318,7 +337,7 @@
                           (e/perform effect-!>coeffect continuation args)))
         str*          (fn [& args]
                         (eff
-                          (! (effect :print args))
+                          (! (effect [:print args]))
                           (apply str args)))]
     (t/are [colls] (= (apply mapv str colls)
                       (apply interpretator e/mapv str* colls)
