@@ -1,22 +1,31 @@
 (ns darkleaf.effect.core-test
   (:require
-   [darkleaf.effect.core :as e :refer [eff ! effect]]
+   [darkleaf.effect.core :as e :refer [! eff effect]]
+   [darkleaf.effect.script :as script]
    #?(:clj  [clojure.core.match :refer [match]]
       :cljs [cljs.core.match :refer-macros [match]])
    [clojure.test :as t]))
 
-(t/deftest simple-use-case
-  (let [ef                (fn [x]
-                            (eff
-                              (let [rnd (! (effect [:random]))]
-                                (- (* 2. x rnd)
-                                   x))))
-        effect-!>coeffect (fn [effect]
-                            (match effect
-                                   [:random] 0.75))
-        continuation      (e/continuation ef)
-        args              [1]]
-    (t/is (= 0.5 (e/perform effect-!>coeffect continuation args)))))
+(t/deftest simple
+  (let [ef           (fn [x]
+                       (eff
+                         (let [rnd (! (effect [:random]))]
+                           (- (* 2. x rnd)
+                              x))))
+        continuation (e/continuation ef)]
+    (t/testing "interpretator"
+      (let [effect-!>coeffect (fn [effect]
+                                (match effect
+                                       [:random] 0.75))
+            f                 (fn [x]
+                                (e/perform effect-!>coeffect continuation [x]))]
+        (t/is (= 0.5 (f 1)))))
+    (t/testing "script"
+      (let [script [{:args [1]}
+                    {:effect   [:random]
+                     :coeffect 0.75}
+                    {:return 0.5}]]
+        (script/test continuation script)))))
 
 #?(:cljs
    (defn- ->async-effect-!>coeeffect [effect-!>coeffect]
@@ -38,255 +47,115 @@
                                                [:random] 0.75))
                     effect-!>coeffect (->async-effect-!>coeeffect effect-!>coeffect)
                     continuation      (e/continuation ef)
-                    args              [1]]
-                (e/perform effect-!>coeffect continuation args
-                           (fn [result]
-                             (t/is (= 0.5 result))
-                             (done))
-                           (fn [error]
-                             (t/is false)
-                             (done)))))))
+                    f                 (fn [x respond raise]
+                                        (e/perform effect-!>coeffect
+                                                   continuation
+                                                   [x]
+                                                   respond raise))]
+                (f 1
+                   (fn [result]
+                     (t/is (= 0.5 result))
+                     (done))
+                   (fn [error]
+                     (t/is (nil? error))
+                     (done)))))))
 
 (t/deftest stack-use-case
-  (let [nested-ef         (fn [x]
-                            (eff
-                              (! (effect [:prn x]))
-                              (! (effect [:read]))))
-        ef                (fn [x]
-                            (eff
-                              (! (effect [:prn :ef]))
-                              (! (nested-ef x))))
-        effect-!>coeffect (fn [effect]
-                            (match effect
-                                   [:prn _]  nil
-                                   [:read]   "input string"))
-        continuation      (e/continuation ef)]
-    (t/is (= "input string" (e/perform effect-!>coeffect continuation ["some val"])))))
-
-(t/deftest script
-  (let [ef           (fn [x]
+  (let [nested-ef    (fn [x]
                        (eff
-                         (! (effect [:some-eff x]))))
+                         (! (effect [:prn "start nested-ef"]))
+                         (! (effect [:prn x]))
+                         (! (effect [:read]))))
+        ef           (fn [x]
+                       (eff
+                         (! (effect [:prn "start ef"]))
+                         (! (nested-ef x))))
         continuation (e/continuation ef)]
-    (t/testing "correct"
-      (let [script [{:args [:value]}
-                    {:effect   [:some-eff :value]
-                     :coeffect :other-value}
-                    {:return :other-value}]]
-        (e/test continuation script)))
-    (t/testing "final-effect"
-      (let [script [{:args [:value]}
-                    {:final-effect [:some-eff :value]}]]
-        (e/test continuation script)))
-    (t/testing "wrong effect"
-      (let [script [{:args [:value]}
-                    {:effect   [:wrong]
-                     :coeffect :other-value}
-                    {:return :other-value}]]
-        (t/is (= {:type     :fail
-                  :expected [:wrong]
-                  :actual   [:some-eff :value]
-                  :message  "Wrong effect"}
-                 (e/test* continuation script)))))
-    (t/testing "wrong return"
-      (let [script [{:args [:value]}
-                    {:effect   [:some-eff :value]
-                     :coeffect :other-value}
-                    {:return :wrong}]]
-        (t/is (= {:type     :fail
-                  :expected :wrong
-                  :actual   :other-value
-                  :message  "Wrong return"}
-                 (e/test* continuation script)))))
-    (t/testing "wrong final-effect"
-      (let [script [{:args [:value]}
-                    {:final-effect [:wrong]}]]
-        (t/is (= {:type     :fail,
-                  :expected [:wrong],
-                  :actual   [:some-eff :value],
-                  :message  "Wrong final effect"}
-                 (e/test* continuation script)))))
-    (t/testing "extra effect"
-      (let [script [{:args [:value]}
-                    {:return :wrong}]]
-        (t/is (=  {:type     :fail
-                   :expected nil
-                   :actual   [:some-eff :value]
-                   :message  "Extra effect"}
-                  (e/test* continuation script)))))
-    (t/testing "missed effect"
-      (let [script [{:args [:value]}
-                    {:effect   [:some-eff :value]
-                     :coeffect :other-value}
-                    {:effect   [:extra-eff :value]
-                     :coeffect :some-value}
-                    {:return :some-other-value}]]
-        (t/is (= {:type     :fail
-                  :expected [:extra-eff :value]
-                  :actual   nil
-                  :message  "Misssed effect"}
-                 (e/test* continuation script)))))))
+    (t/testing "interpretator"
+      (let [effect-!>coeffect (fn [effect]
+                                (match effect
+                                       [:prn _]  nil
+                                       [:read]   "input string"))
+            f                 (fn [x]
+                                (e/perform effect-!>coeffect continuation [x]))]
+        (t/is (= "input string" (f  "some val")))))
+    (t/testing "script"
+      (let [script [{:args ["some val"]}
+                    {:effect   [:prn "start ef"]
+                     :coeffect nil}
+                    {:effect   [:prn "start nested-ef"]
+                     :coeffect nil}
+                    {:effect   [:prn "some val"]
+                     :coeffect nil}
+                    {:effect   [:read]
+                     :coeffect "input string"}
+                    {:return "input string"}]]
+        (script/test continuation script)))))
+
 
 (t/deftest types-of-effects
   (let [ef           (fn []
                        (eff
-                         (! (effect [:effect-1 :arg]))
-                         (! (effect {:type  :effect-2
-                                     :arg-1 :val}))
-                         (! (effect 'effect-3))
-                         nil))
-        continuation (e/continuation ef)
-        script       [{:args []}
-                      {:effect   [:effect-1 :arg]
-                       :coeffect nil}
-                      {:effect {:type  :effect-2
-                                :arg-1 :val}}
-                      {:effect   'effect-3
-                       :coeffect nil}
-                      {:return nil}]]
-    (e/test continuation script)))
+                         [(! (effect [:effect-1 :val-1]))
+                          (! (effect {:type :effect-2
+                                      :arg  :val-2}))
+                          (! (effect 'effect-3))]))
+        continuation (e/continuation ef)]
+    (t/testing "interpretator"
+      (let [effect-!>coeffect (fn [effect]
+                                (match effect
+                                       [:effect-1 arg] arg
+                                       {:type :effect-2, :arg arg} arg
+                                       'effect-3 :val-3))
+            f                 (fn []
+                                (e/perform effect-!>coeffect continuation []))]
+        (t/is (= [:val-1 :val-2 :val-3] (f)))))
+    (t/testing "script"
+      (let [script [{:args []}
+                    {:effect   [:effect-1 :val-1]
+                     :coeffect :val-1}
+                    {:effect   {:type :effect-2
+                                :arg  :val-2}
+                     :coeffect :val-2}
+                    {:effect   'effect-3
+                     :coeffect :val-3}
+                    {:return [:val-1 :val-2 :val-3]}]]
+        (script/test continuation script)))))
 
-(t/deftest trivial-script
-  (let [ef           (fn [x]
-                       (eff
-                         x))
-        continuation (e/continuation ef)
-        script       [{:args [:value]}
-                      {:return :value}]]
-      (e/test continuation script)))
-
-(t/deftest fallback-script
+(t/deftest fallback
   (let [ef           (fn [x]
                        (eff
                          (let [a (! (effect [:eff]))
-                               b (! (inc x))
-                               c (! [:key 1 2])]
+                               b (! [:not-effect])
+                               c (! (inc x))]
                            [a b c])))
-        continuation (e/continuation ef)
-        script       [{:args [0]}
-                      {:effect   [:eff]
-                       :coeffect :coeff}
-                      {:return [:coeff 1 [:key 1 2]]}]]
-    (e/test continuation script)))
+        continuation (e/continuation ef)]
+    (t/testing "interpretator"
+      (let [effect-!>coeffect (fn [effect]
+                                (match effect
+                                       [:eff] :coeff))
+            f                 (fn [x]
+                                (e/perform effect-!>coeffect continuation [x]))]
+        (t/is (= [:coeff [:not-effect] 1] (f 0)))))
+    (t/testing "script"
+      (let [script [{:args [0]}
+                    {:effect   [:eff]
+                     :coeffect :coeff}
+                    {:return [:coeff [:not-effect] 1]}]]
+        (script/test continuation script)))))
 
-(t/deftest stack-script
-  (let [ef1          (fn []
-                       (eff
-                         (doseq [i (range 2)]
-                           (! (effect [:prn i])))))
-        ef2          (fn [x]
-                       (eff
-                         (! (effect [:prn x]))
-                         (! (ef1))
-                         :ok))
-        ef           (fn []
-                       (eff
-                         (! (ef2 "foo"))))
-        continuation (e/continuation ef)
-        script       [{:args []}
-                      {:effect   [:prn "foo"]
-                       :coeffect nil}
-                      {:effect   [:prn 0]
-                       :coeffect nil}
-                      {:effect   [:prn 1]
-                       :coeffect nil}
-                      {:return :ok}]]
-    (e/test continuation script)))
-
-(t/deftest effect-as-value-script
-  (let [test-effect  (effect [:prn 1])
+(t/deftest effect-as-value
+  (let [effect-data  [:prn 1]
+        test-effect  (effect effect-data)
         ef           (fn []
                        (eff
                          (! test-effect)))
         continuation (e/continuation ef)
         script       [{:args []}
-                      {:effect   test-effect
+                      {:effect   [:prn 1]
                        :coeffect nil}
                       {:return nil}]]
-    (e/test continuation script)))
-
-(t/deftest maybe-example
-  (let [ef                (fn [x]
-                            (eff
-                              (+ 5 (! (effect [:maybe x])))))
-        effect-!>coeffect (fn [effect]
-                            (match effect
-                                   [:maybe nil] (reduced nil)
-                                   [:maybe val] val))]
-    (t/testing "interpretator"
-      (let [continuation (-> (e/continuation ef)
-                             (e/wrap-reduced))]
-        (t/is (= 6 (e/perform effect-!>coeffect continuation [1])))
-        (t/is (= nil (e/perform effect-!>coeffect continuation [nil])))))
-    (t/testing "script"
-      (t/testing :just
-        (let [continuation (e/continuation ef)
-              script       [{:args [1]}
-                            {:effect   [:maybe 1]
-                             :coeffect 1}
-                            {:return 6}]]
-          (e/test continuation script)))
-      (t/testing :nothing
-        (let [continuation (e/continuation ef)
-              script       [{:args [nil]}
-                            {:final-effect [:maybe nil]}]]
-          (e/test continuation script))))))
-
-(t/deftest state-example
-  (let [ef                (fn []
-                            (eff
-                              [(! (effect [:update inc]))
-                               (! (effect [:update + 2]))
-                               (! (effect [:get]))]))
-        effect-!>coeffect (fn [[context effect]]
-                            (match effect
-                                   [:get]
-                                   [context (:state context)]
-
-                                   [:update f & args]
-                                   (let [context (apply update context :state f args)]
-                                     [context (:state context)])))
-        continuation (-> (e/continuation ef)
-                         (e/wrap-context))]
-    (t/is (= [{:state 3} [1 3 3]]
-             (e/perform effect-!>coeffect continuation [{:state 0} []])))))
-
-(t/deftest suspend-resume
-  (let [ef                (fn [x]
-                            (eff
-                              (let [a (! (effect [:suspend]))
-                                    b (! (effect [:effect]))
-                                    c (! (effect [:suspend]))]
-                                [x a b c])))
-        effect-!>coeffect (fn [effect]
-                            (match effect
-                                   [:effect]  :effect-coeffect
-                                   [:suspend] ::e/suspend))
-        continuation      (-> (e/continuation ef)
-                              (e/wrap-suspend))
-        suspended         (e/perform effect-!>coeffect continuation [:arg])
-        _                 (t/is (= [::e/suspended [{:coeffect    [:arg]
-                                                    :next-effect [:suspend]}]]
-                                   suspended))
-        log               (last suspended)
-        continuation      (-> (e/continuation ef)
-                              (e/wrap-suspend)
-                              (e/resume log))
-        suspended         (e/perform effect-!>coeffect continuation :value-1)
-        _                 (t/is (= [::e/suspended [{:coeffect    [:arg]
-                                                    :next-effect [:suspend]}
-                                                   {:coeffect    :value-1
-                                                    :next-effect [:effect]}
-                                                   {:coeffect    :effect-coeffect
-                                                    :next-effect [:suspend]}]]
-                                   suspended))
-        log               (last suspended)
-        continuation      (-> (e/continuation ef)
-                              (e/wrap-suspend)
-                              (e/resume log))
-        done              (e/perform effect-!>coeffect continuation :value-2)]
-    (t/is (= [::e/done [:arg :value-1 :effect-coeffect :value-2]]
-             done))))
+    (script/test continuation script)))
 
 (t/deftest reduce-test
   (let [interpretator (fn [ef & args]
