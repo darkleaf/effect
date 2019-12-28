@@ -58,14 +58,17 @@
        effect
        (recur (continuation (effect-!>coeffect effect))))))
   ([effect-!>coeffect continuation coeffect-or-args respond raise]
-   (let [[effect continuation] (continuation coeffect-or-args)]
-     (if (nil? continuation)
-       (respond effect)
-       (effect-!>coeffect effect
-                          (fn [coeffect]
-                            (perform effect-!>coeffect continuation coeffect
-                                     respond raise))
-                          raise)))))
+   (try
+     (let [[effect continuation] (continuation coeffect-or-args)]
+       (if (nil? continuation)
+         (respond effect)
+         (effect-!>coeffect effect
+                            (fn [coeffect]
+                              (perform effect-!>coeffect continuation coeffect
+                                       respond raise))
+                            raise)))
+     (catch #?(:clj java.lang.Throwable, :cljs js/Error) error
+       (raise error)))))
 
 (defn reduce
   ([ef coll]

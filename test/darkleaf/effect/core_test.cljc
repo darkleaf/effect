@@ -28,48 +28,39 @@
         (script/test continuation script)))))
 
 #?(:cljs
-   (defn- ->async-effect-!>coeeffect [effect-!>coeffect]
-     (fn [effect respond raise]
-       (js/setTimeout (fn []
-                        (respond (effect-!>coeffect effect)))
-                      0))))
+   (t/deftest simple-async
+     (let [ef                (fn [x]
+                               (eff
+                                (let [rnd (! (effect [:random]))]
+                                  (- (* 2. x rnd)
+                                     x))))
+           effect-!>coeffect (fn [effect respond raise]
+                               (match effect
+                                      [:random] (js/setTimeout respond 0 0.75)))
+           continuation      (e/continuation ef)
+           f                 (fn [x respond raise]
+                               (e/perform effect-!>coeffect
+                                          continuation
+                                          [x]
+                                          respond raise))]
 
-#?(:cljs
-   (t/deftest async-use-case
-     (t/async done
-              (let [ef                (fn [x]
-                                        (eff
-                                          (let [rnd (! (effect [:random]))]
-                                            (- (* 2. x rnd)
-                                               x))))
-                    effect-!>coeffect (fn [effect]
-                                        (match effect
-                                               [:random] 0.75))
-                    effect-!>coeffect (->async-effect-!>coeeffect effect-!>coeffect)
-                    continuation      (e/continuation ef)
-                    f                 (fn [x respond raise]
-                                        (e/perform effect-!>coeffect
-                                                   continuation
-                                                   [x]
-                                                   respond raise))]
-                (f 1
-                   (fn [result]
-                     (t/is (= 0.5 result))
-                     (done))
-                   (fn [error]
-                     (t/is (nil? error))
-                     (done)))))))
+       (t/async done
+                (letfn [(check [kind value]
+                          (t/is (= :respond kind))
+                          (t/is (= 0.5 value))
+                          (done))]
+                  (f 1 #(check :respond %) #(check :raise %)))))))
 
 (t/deftest stack-use-case
   (let [nested-ef    (fn [x]
                        (eff
-                         (! (effect [:prn "start nested-ef"]))
-                         (! (effect [:prn x]))
-                         (! (effect [:read]))))
+                        (! (effect [:prn "start nested-ef"]))
+                        (! (effect [:prn x]))
+                        (! (effect [:read]))))
         ef           (fn [x]
                        (eff
-                         (! (effect [:prn "start ef"]))
-                         (! (nested-ef x))))
+                        (! (effect [:prn "start ef"]))
+                        (! (nested-ef x))))
         continuation (e/continuation ef)]
     (t/testing "interpretator"
       (let [effect-!>coeffect (fn [effect]
@@ -155,6 +146,79 @@
                        :coeffect nil}
                       {:return nil}]]
     (script/test continuation script)))
+
+(t/deftest exceptions
+  (t/testing "in ef"
+    (let [ef                (fn []
+                              (eff
+                                (! (effect [:prn "Throw!"]))
+                                (throw (ex-info "Test" {}))))
+          continuation      (e/continuation ef)
+          effect-!>coeffect (fn [effect]
+                              (match effect
+                                     [:prn msg] nil))
+          f                 (fn []
+                              (e/perform effect-!>coeffect continuation []))]
+      (t/is (thrown-with-msg? #?(:clj  clojure.lang.ExceptionInfo
+                                 :cljs cljs.core.ExceptionInfo)
+                              #"Test"
+                              (f))))
+    (t/testing "in effect-!>coeffect"
+      (let [ef                (fn []
+                                (eff
+                                  (! (effect [:prn "Throw!"]))
+                                  :some-val))
+            continuation      (e/continuation ef)
+            effect-!>coeffect (fn [effect]
+                                (throw (ex-info "Test" {})))
+            f                 (fn []
+                                (e/perform effect-!>coeffect continuation []))]
+        (t/is (thrown-with-msg? #?(:clj  clojure.lang.ExceptionInfo
+                                   :cljs cljs.core.ExceptionInfo)
+                                #"Test"
+                                (f)))))))
+
+#?(:cljs
+   (t/deftest exceptions-in-ef-async
+     (let [ef                (fn []
+                               (eff
+                                (! (effect [:prn "Throw!"]))
+                                (throw (ex-info "Test" {}))))
+           continuation      (e/continuation ef)
+           effect-!>coeffect (fn [effect respond raise]
+                               (match effect
+                                      [:prn msg] (js/setTimeout (fn []
+                                                                  (respond nil))
+                                                                1)))
+           f                 (fn [respond raise]
+                               (e/perform effect-!>coeffect continuation []
+                                          respond raise))]
+       (t/async done
+                (letfn [(check [kind value]
+                          (t/is (= :raise kind))
+                          (t/is (= "Test" (ex-message value)))
+                          (done))]
+                  (f #(check :respond %)
+                     #(check :raise %)))))))
+
+#?(:cljs
+   (t/deftest exceptions-in-effect-!>coeffect-async
+     (let [ef                (fn []
+                               (eff
+                                (! (effect [:prn "Throw!"]))
+                                :some-val))
+           continuation      (e/continuation ef)
+           effect-!>coeffect (fn [effect respond raise]
+                               (js/setTimeout raise 1 (ex-info "Test" {})))
+           f                 (fn [respond raise]
+                               (e/perform effect-!>coeffect continuation []
+                                          respond raise))]
+       (t/async done
+                (letfn [(check [kind value]
+                          (t/is (= :raise kind))
+                          (t/is (= "Test" (ex-message value)))
+                          (done))]
+                  (f #(check :respond %) #(check :raise %)))))))
 
 (t/deftest reduce-test
   (let [interpretator (fn [ef & args]
