@@ -1,4 +1,5 @@
 (ns darkleaf.effect.script
+  (:refer-clojure :exclude [test])
   (:require
    [clojure.test :as t]))
 

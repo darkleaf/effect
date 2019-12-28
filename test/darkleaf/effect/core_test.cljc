@@ -92,7 +92,6 @@
                     {:return "input string"}]]
         (script/test continuation script)))))
 
-
 (t/deftest types-of-effects
   (let [ef           (fn []
                        (eff

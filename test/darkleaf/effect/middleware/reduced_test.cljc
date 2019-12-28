@@ -16,20 +16,36 @@
                                    [:maybe nil] (reduced nil)
                                    [:maybe val] val))]
     (t/testing "interpretator"
-      (let [continuation (-> (e/continuation ef)
+      (let [continuation (-> ef
+                             (e/continuation)
                              (reduced/wrap-reduced))]
         (t/is (= 6 (e/perform effect-!>coeffect continuation [1])))
         (t/is (= nil (e/perform effect-!>coeffect continuation [nil])))))
     (t/testing "script"
-      (t/testing :just
-        (let [continuation (e/continuation ef)
-              script       [{:args [1]}
-                            {:effect   [:maybe 1]
-                             :coeffect 1}
-                            {:return 6}]]
-          (script/test continuation script)))
-      (t/testing :nothing
-        (let [continuation (e/continuation ef)
-              script       [{:args [nil]}
-                            {:final-effect [:maybe nil]}]]
-          (script/test continuation script))))))
+      (let [continuation (e/continuation ef)]
+        (t/testing :just
+          (let [script [{:args [1]}
+                        {:effect   [:maybe 1]
+                         :coeffect 1}
+                        {:return 6}]]
+            (script/test continuation script)))
+        (t/testing :nothing
+          (let [script [{:args [nil]}
+                        {:final-effect [:maybe nil]}]]
+            (script/test continuation script)))))
+    (t/testing "script with applied middleware"
+      (let [continuation (-> ef
+                             (e/continuation)
+                             (reduced/wrap-reduced))]
+        (t/testing :just
+          (let [script [{:args [1]}
+                        {:effect   [:maybe 1]
+                         :coeffect 1}
+                        {:return 6}]]
+            (script/test continuation script)))
+        (t/testing :nothing
+          (let [script [{:args [nil]}
+                        {:effect   [:maybe nil]
+                         :coeffect (reduced nil)}
+                        {:return nil}]]
+            (script/test continuation script)))))))
