@@ -5,59 +5,59 @@
    [clojure.test :as t]))
 
 (t/deftest reduce!
-  (let [interpretator (fn [ef & args]
-                        (let [continuation      (e/continuation ef)
+  (let [my-reduce!    (fn [& args]
+                        (let [continuation      (e/continuation hof/reduce!)
                               effect-!>coeffect (constantly ::not-used-coeffect)]
                           (e/perform effect-!>coeffect continuation args)))
         str*          (fn [& args]
                         (eff
                           (! (effect [:print args]))
                           (apply str args)))
-        with-reduced  (fn [acc v]
+        with-reduced  (fn [_acc v]
                         (if (= :done v)
                           (reduced v)
                           v))
-        with-reduced* (fn [_ v]
+        with-reduced* (fn [_acc v]
                         (eff
                           (! (effect [:print v]))
                           (if (= :done v)
                             (reduced v)
                             v)))]
     (t/are [coll] (= (reduce str coll)
-                     (interpretator hof/reduce! str* coll)
-                     (interpretator hof/reduce! str coll))
+                     (my-reduce! str* coll)
+                     (my-reduce! str coll))
       nil
       []
       [:a]
       [:a :b]
       [:a :b :c])
     (t/are [val coll] (= (reduce str val coll)
-                         (interpretator hof/reduce! str* val coll)
-                         (interpretator hof/reduce! str val coll))
+                         (my-reduce! str* val coll)
+                         (my-reduce! str val coll))
 
       "acc" []
       "acc" [:a]
       "acc" [:a :b]
       "acc" [:a :b :c])
     (t/are [coll] (= (reduce with-reduced coll)
-                     (interpretator hof/reduce! with-reduced* coll)
-                     (interpretator hof/reduce! with-reduced coll))
+                     (my-reduce! with-reduced* coll)
+                     (my-reduce! with-reduced coll))
       [:done]
       [1 :done]
       [1 2 3 :done 4 5])))
 
 (t/deftest mapv!
-  (let [interpretator (fn [ef & args]
-                        (let [continuation      (e/continuation ef)
-                              effect-!>coeffect (constantly ::not-used-coeffect)]
-                          (e/perform effect-!>coeffect continuation args)))
-        str*          (fn [& args]
-                        (eff
-                          (! (effect [:print args]))
-                          (apply str args)))]
+  (let [my-mapv! (fn [& args]
+                   (let [continuation      (e/continuation hof/mapv!)
+                         effect-!>coeffect (constantly ::not-used-coeffect)]
+                     (e/perform effect-!>coeffect continuation args)))
+        str*     (fn [& args]
+                   (eff
+                     (! (effect [:print args]))
+                     (apply str args)))]
     (t/are [colls] (= (apply mapv str colls)
-                      (apply interpretator hof/mapv! str* colls)
-                      (apply interpretator hof/mapv! str colls))
+                      (apply my-mapv! str* colls)
+                      (apply my-mapv! str colls))
       [nil]
       [[]]
       [[0]]
