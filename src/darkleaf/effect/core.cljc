@@ -6,18 +6,18 @@
   #?(:cljs (:require-macros [darkleaf.effect.core :refer [eff]])))
 
 (defn effect [x]
-  (i/with-kind x ::effect))
+  (i/with-kind x :effect))
 
 (defn ! [x]
   (case (i/kind x)
-    ::effect    x
-    ::coroutine x
-    (i/with-kind [x] ::wrapped)))
+    :effect    x
+    :coroutine x
+    (i/with-kind [x] :wrapped)))
 
 (defmacro ^{:style/indent :defn} eff [& body]
   `(i/with-kind
      (cr {! i/coeffect} ~@body)
-     ::coroutine))
+     :coroutine))
 
 (defn- update-head [coll f & args]
   (if (seq coll)
@@ -32,14 +32,14 @@
            coeffect coeffect]
       (if (empty? stack)
         [coeffect nil]
-        (let [stack     (update-head stack (fn copy [mutable-coroutine]
+        (let [stack     (update-head stack (fn clone [mutable-coroutine]
                                              (mutable-coroutine identity)))
               coroutine (peek stack)
               val       (i/with-coeffect coeffect coroutine)]
           (case (i/kind val)
-            ::effect    [val (stack->continuation stack)]
-            ::coroutine (recur (conj stack val) nil)
-            ::wrapped   (recur  stack (first val))
+            :effect    [val (stack->continuation stack)]
+            :coroutine (recur (conj stack val) nil)
+            :wrapped   (recur  stack (first val))
             ;; coroutine is finished
             (recur (pop stack) val)))))))
 
