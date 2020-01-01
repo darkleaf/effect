@@ -19,37 +19,18 @@
      (cr {! i/coeffect} ~@body)
      :coroutine))
 
-(defn- update-head [coll f & args]
-  (if (seq coll)
-    (-> coll
-        (pop)
-        (conj (apply f (peek coll) args)))
-    coll))
+(defn call [coroutine return coeffect]
+  (let [val (i/with-coeffect coeffect coroutine)]
+    (case (i/kind val)
+      :effect [val (partial coroutine call return)]
+      :coroutine (val call (partial coroutine call return) nil)
+      :wrapped (recur coroutine return (first val))
+      (return val))))
 
-(defn- stack->continuation [stack]
-  (fn [coeffect]
-    (loop [stack    stack
-           coeffect coeffect]
-      (if (empty? stack)
-        [coeffect nil]
-        (let [stack     (update-head stack (fn clone [mutable-coroutine]
-                                             (mutable-coroutine identity)))
-              coroutine (peek stack)
-              val       (i/with-coeffect coeffect coroutine)]
-          (case (i/kind val)
-            :effect    [val (stack->continuation stack)]
-            :coroutine (recur (conj stack val) nil)
-            :wrapped   (recur  stack (first val))
-            ;; coroutine is finished
-            (recur (pop stack) val)))))))
+(defn done [x] [x nil])
 
 (defn continuation [effn]
-  (fn [args]
-    (let [coroutine (apply effn args)
-          stack     (list coroutine)
-          cont      (stack->continuation stack)
-          coeffect  ::not-used]
-      (cont coeffect))))
+  (fn [args] ((apply effn args) call done nil)))
 
 (defn perform
   ([effect-!>coeffect continuation coeffect-or-args]
