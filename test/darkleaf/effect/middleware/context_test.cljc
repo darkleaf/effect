@@ -1,6 +1,6 @@
 (ns darkleaf.effect.middleware.context-test
   (:require
-   [darkleaf.effect.core :as e :refer [! eff effect]]
+   [darkleaf.effect.core :as e :refer [break ! effect]]
    [darkleaf.effect.script :as script]
    [darkleaf.effect.middleware.context :as context]
    #?(:clj  [clojure.core.match :refer [match]]
@@ -9,7 +9,7 @@
 
 (t/deftest state
   (let [ef (fn [x]
-             (eff
+             (break
                [x
                 (! (effect [:update inc]))
                 (! (effect [:update + 2]))

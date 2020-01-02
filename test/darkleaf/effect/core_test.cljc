@@ -1,6 +1,6 @@
 (ns darkleaf.effect.core-test
   (:require
-   [darkleaf.effect.core :as e :refer [! eff effect]]
+   [darkleaf.effect.core :as e :refer [break ! effect]]
    [darkleaf.effect.script :as script]
    #?(:clj  [clojure.core.match :refer [match]]
       :cljs [cljs.core.match :refer-macros [match]])
@@ -12,7 +12,7 @@
 
 (t/deftest simple
   (let [ef           (fn [x]
-                       (eff
+                       (break
                          (let [rnd (! (effect [:random]))]
                            (- (* 2. x rnd)
                               x))))
@@ -33,7 +33,7 @@
 
 (t/deftest simple-async
   (let [ef                (fn [x]
-                            (eff
+                            (break
                               (let [rnd (! (effect [:random]))]
                                 (- (* 2. x rnd)
                                    x))))
@@ -55,14 +55,14 @@
 
 (t/deftest stack-use-case
   (let [nested-ef    (fn [x]
-                       (eff
-                        (! (effect [:prn "start nested-ef"]))
-                        (! (effect [:prn x]))
-                        (! (effect [:read]))))
+                       (break
+                         (! (effect [:prn "start nested-ef"]))
+                         (! (effect [:prn x]))
+                         (! (effect [:read]))))
         ef           (fn [x]
-                       (eff
-                        (! (effect [:prn "start ef"]))
-                        (! (nested-ef x))))
+                       (break
+                         (! (effect [:prn "start ef"]))
+                         (! (nested-ef x))))
         continuation (e/continuation ef)]
     (t/testing "interpretator"
       (let [effect-!>coeffect (fn [effect]
@@ -87,7 +87,7 @@
 
 (t/deftest types-of-effects
   (let [ef           (fn []
-                       (eff
+                       (break
                          [(! (effect [:effect-1 :val-1]))
                           (! (effect {:type :effect-2
                                       :arg  :val-2}))
@@ -116,7 +116,7 @@
 
 (t/deftest fallback
   (let [ef           (fn [x]
-                       (eff
+                       (break
                          (let [a (! (effect [:eff]))
                                b (! [:not-effect])
                                c (! (inc x))]
@@ -140,7 +140,7 @@
   (let [effect-data  [:prn 1]
         test-effect  (effect effect-data)
         ef           (fn []
-                       (eff
+                       (break
                          (! test-effect)))
         continuation (e/continuation ef)
         script       [{:args []}
@@ -152,7 +152,7 @@
 (t/deftest exceptions
   (t/testing "in ef"
     (let [ef                (fn []
-                              (eff
+                              (break
                                 (! (effect [:prn "Throw!"]))
                                 (throw (ex-info "Test" {}))))
           continuation      (e/continuation ef)
@@ -167,7 +167,7 @@
                               (f))))
     (t/testing "in effect-!>coeffect"
       (let [ef                (fn []
-                                (eff
+                                (break
                                   (! (effect [:prn "Throw!"]))
                                   :some-val))
             continuation      (e/continuation ef)
@@ -182,7 +182,7 @@
 
 (t/deftest exceptions-in-ef-async
   (let [ef                (fn []
-                            (eff
+                            (break
                               (! (effect [:prn "Throw!"]))
                               (throw (ex-info "Test" {}))))
         continuation      (e/continuation ef)
@@ -202,7 +202,7 @@
 
 (t/deftest exceptions-in-effect-!>coeffect-async
   (let [ef                (fn []
-                            (eff
+                            (break
                               (! (effect [:prn "Throw!"]))
                               :some-val))
         continuation      (e/continuation ef)

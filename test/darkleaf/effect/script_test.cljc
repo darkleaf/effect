@@ -1,12 +1,12 @@
 (ns darkleaf.effect.script-test
   (:require
-   [darkleaf.effect.core :as e :refer [! eff effect]]
+   [darkleaf.effect.core :as e :refer [break ! effect]]
    [darkleaf.effect.script :as script]
    [clojure.test :as t]))
 
 (t/deftest script
     (let [ef           (fn [x]
-                         (eff
+                         (break
                            (! (effect [:some-eff x]))))
           continuation (e/continuation ef)]
       (t/testing "correct"
@@ -70,7 +70,7 @@
 
 (t/deftest trivial-script
     (let [ef           (fn [x]
-                         (eff
+                         (break
                            x))
           continuation (e/continuation ef)
           script       [{:args [:value]}
