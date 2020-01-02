@@ -1,12 +1,12 @@
-(ns darkleaf.effect.hof-test
+(ns darkleaf.effect.util-test
   (:require
    [darkleaf.effect.core :as e :refer [! eff effect]]
-   [darkleaf.effect.hof :as hof]
+   [darkleaf.effect.util :as u]
    [clojure.test :as t]))
 
 (t/deftest reduce!
   (let [my-reduce!    (fn [& args]
-                        (let [continuation      (e/continuation hof/reduce!)
+                        (let [continuation      (e/continuation u/reduce!)
                               effect-!>coeffect (constantly ::not-used-coeffect)]
                           (e/perform effect-!>coeffect continuation args)))
         str*          (fn [& args]
@@ -48,7 +48,7 @@
 
 (t/deftest mapv!
   (let [my-mapv! (fn [& args]
-                   (let [continuation      (e/continuation hof/mapv!)
+                   (let [continuation      (e/continuation u/mapv!)
                          effect-!>coeffect (constantly ::not-used-coeffect)]
                      (e/perform effect-!>coeffect continuation args)))
         str*     (fn [& args]

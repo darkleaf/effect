@@ -1,5 +1,4 @@
-(ns darkleaf.effect.hof
-  "Higher-order functions"
+(ns darkleaf.effect.util
   (:require
    [darkleaf.effect.core :refer [eff !]]))
 
