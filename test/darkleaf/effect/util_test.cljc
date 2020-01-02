@@ -4,60 +4,63 @@
    [darkleaf.effect.util :as u]
    [clojure.test :as t]))
 
+(defn- wrap-effect [f]
+  (fn [& args]
+    (eff
+      (! (effect [:prn [:args args]]))
+      (let [result (apply f args)]
+        (! (effect [:prn [:result result]]))
+        result))))
+
+(defn- call [effn]
+  (let [continuation      (e/continuation effn)
+        effect-!>coeffect (constantly ::not-interesting)]
+    (e/perform effect-!>coeffect continuation [])))
+
+(t/deftest ->!
+  (let [inc* (wrap-effect inc)
+        dec* (wrap-effect dec)]
+    (t/is (= 1
+             (              ->  0 inc  inc  dec)
+             (call #(eff (u/->! 0 inc  inc  dec)))
+             (call #(eff (u/->! 0 inc* inc* dec*)))
+             (call #(eff (u/->! (inc* 0) inc* dec*)))))))
+
 (t/deftest reduce!
-  (let [my-reduce!    (fn [& args]
-                        (let [continuation      (e/continuation u/reduce!)
-                              effect-!>coeffect (constantly ::not-used-coeffect)]
-                          (e/perform effect-!>coeffect continuation args)))
-        str*          (fn [& args]
-                        (eff
-                          (! (effect [:print args]))
-                          (apply str args)))
+  (let [str*          (wrap-effect str)
         with-reduced  (fn [_acc v]
                         (if (= :done v)
                           (reduced v)
                           v))
-        with-reduced* (fn [_acc v]
-                        (eff
-                          (! (effect [:print v]))
-                          (if (= :done v)
-                            (reduced v)
-                            v)))]
-    (t/are [coll] (= (reduce str coll)
-                     (my-reduce! str* coll)
-                     (my-reduce! str coll))
+        with-reduced* (wrap-effect with-reduced)]
+    (t/are [coll] (= (         reduce  str  coll)
+                     (call #(u/reduce! str  coll))
+                     (call #(u/reduce! str* coll)))
       nil
       []
       [:a]
       [:a :b]
       [:a :b :c])
-    (t/are [val coll] (= (reduce str val coll)
-                         (my-reduce! str* val coll)
-                         (my-reduce! str val coll))
-
+    (t/are [val coll] (= (         reduce  str  val coll)
+                         (call #(u/reduce! str  val coll))
+                         (call #(u/reduce! str* val coll)))
       "acc" []
       "acc" [:a]
       "acc" [:a :b]
       "acc" [:a :b :c])
-    (t/are [coll] (= (reduce with-reduced coll)
-                     (my-reduce! with-reduced* coll)
-                     (my-reduce! with-reduced coll))
+    (t/are [coll] (= (         reduce  with-reduced  coll)
+                     (call #(u/reduce! with-reduced  coll))
+                     (call #(u/reduce! with-reduced* coll)))
       [:done]
       [1 :done]
       [1 2 3 :done 4 5])))
 
 (t/deftest mapv!
-  (let [my-mapv! (fn [& args]
-                   (let [continuation      (e/continuation u/mapv!)
-                         effect-!>coeffect (constantly ::not-used-coeffect)]
-                     (e/perform effect-!>coeffect continuation args)))
-        str*     (fn [& args]
-                   (eff
-                     (! (effect [:print args]))
-                     (apply str args)))]
-    (t/are [colls] (= (apply mapv str colls)
-                      (apply my-mapv! str* colls)
-                      (apply my-mapv! str colls))
+  (let [str* (wrap-effect str)]
+    (t/are [colls] (= (       apply mapv    str  colls)
+                      (call #(apply u/mapv! str  colls))
+                      (call #(apply u/mapv! str* colls)))
+
       [nil]
       [[]]
       [[0]]
