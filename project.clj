@@ -1,4 +1,4 @@
-(defproject darkleaf/effect "0.0.12"
+(defproject darkleaf/effect "0.0.13"
   :description "Effect system"
   :url "https://github.com/darkleaf/effect/"
   :license {:name "Eclipse Public License"
