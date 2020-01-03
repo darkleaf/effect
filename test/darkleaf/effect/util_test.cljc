@@ -1,12 +1,12 @@
 (ns darkleaf.effect.util-test
   (:require
-   [darkleaf.effect.core :as e :refer [! break  effect]]
+   [darkleaf.effect.core :as e :refer [! with-effects  effect]]
    [darkleaf.effect.util :as u]
    [clojure.test :as t]))
 
 (defn- wrap-effect [f]
   (fn [& args]
-    (break
+    (with-effects
       (! (effect [:prn [:args args]]))
       (let [result (apply f args)]
         (! (effect [:prn [:result result]]))
@@ -21,10 +21,10 @@
   (let [inc* (wrap-effect inc)
         dec* (wrap-effect dec)]
     (t/is (= 1
-             (              ->  0 inc  inc  dec)
-             (call #(break (u/->! 0 inc  inc  dec)))
-             (call #(break (u/->! 0 inc* inc* dec*)))
-             (call #(break (u/->! (inc* 0) inc* dec*)))))))
+             (                       ->  0 inc  inc  dec)
+             (call #(with-effects (u/->! 0 inc  inc  dec)))
+             (call #(with-effects (u/->! 0 inc* inc* dec*)))
+             (call #(with-effects (u/->! (inc* 0) inc* dec*)))))))
 
 (t/deftest reduce!
   (let [str*          (wrap-effect str)

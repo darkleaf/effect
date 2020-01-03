@@ -3,7 +3,7 @@
   (:require
    [cloroutine.core :refer [cr]]
    [darkleaf.effect.internal :as i])
-  #?(:cljs (:require-macros [darkleaf.effect.core :refer [break]])))
+  #?(:cljs (:require-macros [darkleaf.effect.core :refer [with-effects]])))
 
 (defn effect [x]
   (i/with-kind x :effect))
@@ -14,7 +14,7 @@
     :coroutine x
     (i/with-kind [x] :wrapped)))
 
-(defmacro ^{:style/indent :defn} break [& body]
+(defmacro ^{:style/indent :defn} with-effects [& body]
   `(i/with-kind
      (cr {! i/coeffect} ~@body)
      :coroutine))

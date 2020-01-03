@@ -1,6 +1,6 @@
 (ns darkleaf.effect.middleware.log-test
   (:require
-   [darkleaf.effect.core :as e :refer [break ! effect]]
+   [darkleaf.effect.core :as e :refer [with-effects ! effect]]
    [darkleaf.effect.script :as script]
    [darkleaf.effect.middleware.log :as log]
    #?(:clj  [clojure.core.match :refer [match]]
@@ -9,7 +9,7 @@
 
 (t/deftest suspend-resume
   (let [ef                (fn [x]
-                            (break
+                            (with-effects
                               (let [a (! (effect [:suspend]))
                                     b (! (effect [:effect]))
                                     c (! (effect [:suspend]))]

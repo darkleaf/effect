@@ -1,6 +1,6 @@
 (ns darkleaf.effect.util
   (:require
-   [darkleaf.effect.core :refer [break !]])
+   [darkleaf.effect.core :refer [with-effects !]])
   #?(:cljs (:require-macros [darkleaf.effect.util :refer [->!]])))
 
 (defmacro ->! [x & forms]
@@ -10,13 +10,13 @@
 
 (defn reduce!
   ([ef coll]
-   (break
+   (with-effects
      (case (count coll)
        0 (! (ef))
        1 (first coll)
        (! (reduce! ef (first coll) (rest coll))))))
   ([ef val coll]
-   (break
+   (with-effects
      (loop [acc val
             coll coll]
        (cond
@@ -32,9 +32,9 @@
 
 (defn mapv!
   ([ef coll]
-   (break
+   (with-effects
      (let [reducer (fn [acc item]
-                     (break
+                     (with-effects
                        (conj! acc (! (ef item)))))
            acc     (transient [])
            result  (! (reduce! reducer acc coll))]

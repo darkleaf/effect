@@ -1,6 +1,6 @@
 (ns darkleaf.effect.middleware.reduced-test
   (:require
-   [darkleaf.effect.core :as e :refer [break ! effect]]
+   [darkleaf.effect.core :as e :refer [with-effects ! effect]]
    [darkleaf.effect.script :as script]
    [darkleaf.effect.middleware.reduced :as reduced]
    #?(:clj  [clojure.core.match :refer [match]]
@@ -9,7 +9,7 @@
 
 (t/deftest maybe-example
   (let [ef                (fn [x]
-                            (break
+                            (with-effects
                               (+ 5 (! (effect [:maybe x])))))
         effect-!>coeffect (fn [effect]
                             (match effect
