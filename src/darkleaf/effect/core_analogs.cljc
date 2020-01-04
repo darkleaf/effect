@@ -1,7 +1,7 @@
-(ns darkleaf.effect.util
+(ns darkleaf.effect.core-analogs
   (:require
    [darkleaf.effect.core :refer [with-effects !]])
-  #?(:cljs (:require-macros [darkleaf.effect.util :refer [->!]])))
+  #?(:cljs (:require-macros [darkleaf.effect.core-analogs :refer [->!]])))
 
 (defmacro ->! [x & forms]
   (let [forms! (map (fn [form] `(-> ~form !))
