@@ -17,15 +17,6 @@
         effect-!>coeffect (constantly ::not-interesting)]
     (e/perform effect-!>coeffect continuation [])))
 
-(t/deftest ->!
-  (let [inc* (wrap-effect inc)
-        dec* (wrap-effect dec)]
-    (t/is (= 1
-             (                     ->  0 inc  inc  dec)
-             (call #(with-effects (e.core/->! 0 inc  inc  dec)))
-             (call #(with-effects (e.core/->! 0 inc* inc* dec*)))
-             (call #(with-effects (e.core/->! (inc* 0) inc* dec*)))))))
-
 (t/deftest reduce!
   (let [str*          (wrap-effect str)
         with-reduced  (fn [_acc v]
@@ -74,3 +65,35 @@
       [[0] [1 2]]
       [[0 1] [2]]
       [#{1 2} [3 4]])))
+
+(t/deftest ->!
+  (let [inc* (wrap-effect inc)
+        dec* (wrap-effect dec)]
+    (t/is (= 1
+             (                     ->  0 inc  inc  dec)
+             (call #(with-effects (e.core/->! 0 inc  inc  dec)))
+             (call #(with-effects (e.core/->! 0 inc* inc* dec*)))
+             (call #(with-effects (e.core/->! (inc* 0) inc* dec*)))))))
+
+(t/deftest ->>!
+  (let [inc* (wrap-effect inc)
+        +*   (wrap-effect +)]
+    (t/is (= 14
+             (->> [0 1 2 3]
+                  (mapv inc)
+                  (mapv inc)
+                  (reduce +))
+             (call #(with-effects
+                      (e.core/->>! [0 1 2 3]
+                                   (mapv inc)
+                                   (mapv inc)
+                                   (reduce +))))
+             (call #(with-effects
+                      (e.core/->>! [0 1 2 3]
+                                   (e.core/mapv! inc*)
+                                   (e.core/mapv! inc*)
+                                   (e.core/reduce! +*))))
+             (call #(with-effects
+                      (e.core/->>! (e.core/mapv! inc* [0 1 2 3])
+                                   (e.core/mapv! inc*)
+                                   (e.core/reduce! +*))))))))

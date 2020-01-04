@@ -1,12 +1,7 @@
 (ns darkleaf.effect.core-analogs
   (:require
    [darkleaf.effect.core :refer [with-effects !]])
-  #?(:cljs (:require-macros [darkleaf.effect.core-analogs :refer [->!]])))
-
-(defmacro ->! [x & forms]
-  (let [forms! (map (fn [form] `(-> ~form !))
-                    forms)]
-    `(-> (! ~x) ~@forms!)))
+  #?(:cljs (:require-macros [darkleaf.effect.core-analogs :refer [->! ->>!]])))
 
 (defn reduce!
   ([ef coll]
@@ -42,3 +37,13 @@
   ([ef coll & colls]
    (->> (apply map list coll colls)
         (mapv! #(apply ef %)))))
+
+(defmacro ->! [x & forms]
+  (let [forms! (map (fn [form] `(-> ~form !))
+                    forms)]
+    `(-> (! ~x) ~@forms!)))
+
+(defmacro ->>! [x & forms]
+  (let [forms! (map (fn [form] `(->> ~form !))
+                    forms)]
+    `(-> (! ~x) ~@forms!)))
