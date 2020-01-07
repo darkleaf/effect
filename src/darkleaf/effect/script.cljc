@@ -38,7 +38,7 @@
     (nil? continuation)
     {:report {:type     :fail
               :expected effect
-              :actual   nil
+              :actual   actual-effect
               :message  "Misssed effect"}}
 
     (not= effect actual-effect)

@@ -64,7 +64,7 @@
                     {:return :some-other-value}]]
         (t/is (= {:type     :fail
                   :expected [:extra-eff :value]
-                  :actual   nil
+                  :actual   :other-value
                   :message  "Misssed effect"}
                  (script/test* continuation script)))))))
 
