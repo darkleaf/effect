@@ -3,12 +3,12 @@
   (:require
    [clojure.test :as t]))
 
-(defn- with-exception-handling [continuation]
+(defn- with-exceptions [continuation]
   (when (some? continuation)
     (fn [coeffect]
       (try
         (let [[effect continuation] (continuation coeffect)
-              continuation          (with-exception-handling continuation)]
+              continuation          (with-exceptions continuation)]
           [effect continuation])
         (catch #?(:clj RuntimeException, :cljs js/Error) ex
           [ex nil])))))
@@ -103,7 +103,7 @@
         middle-items (-> script rest butlast)
         last-item    (last script)
         continuation (-> continuation
-                         (with-exception-handling))]
+                         (with-exceptions))]
     (-> {:continuation continuation, :report {:type :pass}}
         (test-first-item first-item)
         (test-middle-items middle-items)
