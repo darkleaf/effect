@@ -3,6 +3,27 @@
   (:require
    [clojure.test :as t]))
 
+(defn- with-exception-handling [continuation]
+  (when (some? continuation)
+    (fn [coeffect]
+      (try
+        (let [[effect continuation] (continuation coeffect)
+              continuation          (with-exception-handling continuation)]
+          [effect continuation])
+        (catch #?(:clj Throwable, :cljs js/Error) ex
+          [ex nil])))))
+
+(defn- exception? [x]
+  (instance? #?(:clj Throwable, :cljs js/Error) x))
+
+(defn- equal-exceptions? [a b]
+  (and (= (type a)
+          (type b))
+       (= (ex-message a)
+          (ex-message b))
+       (= (ex-data a)
+          (ex-data b))))
+
 (defn- test-first-item [{:keys [report continuation]} {:keys [args]}]
   (let [[effect continuation] (continuation args)]
     {:report        report
@@ -36,7 +57,7 @@
   (reduce test-middle-item ctx items))
 
 (defn- test-last-item [{:keys [report actual-effect continuation]}
-                       {:keys [return final-effect]}]
+                       {:keys [return final-effect thrown]}]
   (cond
     (not= :pass (:type report))
     {:report report}
@@ -50,6 +71,16 @@
               :expected final-effect
               :actual   actual-effect
               :message  "Wrong final effect"}}
+
+    (and (some? thrown)
+         (equal-exceptions? thrown actual-effect))
+    {:report report}
+
+    (some? thrown)
+    {:report {:type     :fail
+              :expected thrown
+              :actual   actual-effect
+              :message  "Wrong exception"}}
 
     (some? continuation)
     {:report {:type     :fail
@@ -70,7 +101,9 @@
   {:pre [(<= 2 (count script))]}
   (let [first-item   (first script)
         middle-items (-> script rest butlast)
-        last-item    (last script)]
+        last-item    (last script)
+        continuation (-> continuation
+                         (with-exception-handling))]
     (-> {:continuation continuation, :report {:type :pass}}
         (test-first-item first-item)
         (test-middle-items middle-items)

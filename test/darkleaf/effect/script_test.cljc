@@ -76,3 +76,48 @@
         script       [{:args [:value]}
                       {:return :value}]]
     (script/test continuation script)))
+
+(t/deftest exception
+  (let [ef           (fn []
+                       (with-effects
+                         (! (effect [:some-eff]))
+                         (throw (ex-info "Message" {:foo :bar}))))
+        continuation (e/continuation ef)]
+    (t/testing "correct"
+      (let [script [{:args []}
+                    {:effect   [:some-eff]
+                     :coeffect :some-coeff}
+                    {:thrown (ex-info "Message" {:foo :bar})}]]
+        (script/test continuation script)))
+    (t/testing "unexpected exception"
+      (let [script [{:args []}
+                    {:effect   [:some-eff]
+                     :coeffect :some-coeff}
+                    {:return :ok}]
+            report (script/test* continuation script)]
+        (t/is (= :fail (:type report)))))
+    (t/testing "wrong exception type"
+      (let [script [{:args []}
+                    {:effect   [:some-eff]
+                     :coeffect :some-coeff}
+                    {:thrown #?(:clj  (RuntimeException. "Some msg")
+                                :cljs (js/Error. "Some msg"))}]
+            report (script/test* continuation script)]
+        (t/is (= :fail (:type report)))
+        (t/is (= "Wrong exception" (:message report)))))
+    (t/testing "wrong exception message"
+      (let [script [{:args []}
+                    {:effect   [:some-eff]
+                     :coeffect :some-coeff}
+                    {:thrown (ex-info "Wrong message" {:foo :bar})}]
+            report (script/test* continuation script)]
+        (t/is (= :fail (:type report)))
+        (t/is (= "Wrong exception" (:message report)))))
+    (t/testing "wrong exception data"
+      (let [script [{:args []}
+                    {:effect   [:some-eff]
+                     :coeffect :some-coeff}
+                    {:thrown (ex-info "Message" {:foo :wrong})}]
+            report (script/test* continuation script)]
+        (t/is (= :fail (:type report)))
+        (t/is (= "Wrong exception" (:message report)))))))
