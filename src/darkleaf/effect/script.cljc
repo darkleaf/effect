@@ -10,7 +10,7 @@
         (let [[effect continuation] (continuation coeffect)
               continuation          (with-exception-handling continuation)]
           [effect continuation])
-        (catch #?(:clj Throwable, :cljs js/Error) ex
+        (catch #?(:clj RuntimeException, :cljs js/Error) ex
           [ex nil])))))
 
 (defn- exception? [x]
