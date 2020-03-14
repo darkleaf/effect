@@ -66,6 +66,17 @@
                   :expected [:extra-eff :value]
                   :actual   :other-value
                   :message  "Misssed effect"}
+                 (script/test* continuation script)))))
+    (t/testing "tag"
+      (let [script [{:args [:value]}
+                    {:tag      :some-tag
+                     :effect   [:wrong]
+                     :coeffect :other-value}
+                    {:return :other-value}]]
+        (t/is (= {:type     :fail
+                  :expected [:wrong]
+                  :actual   [:some-eff :value]
+                  :message  ":some-tag / Wrong effect"}
                  (script/test* continuation script)))))))
 
 (t/deftest trivial-script

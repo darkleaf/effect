@@ -1,7 +1,8 @@
 (ns darkleaf.effect.script
   (:refer-clojure :exclude [test])
   (:require
-   [clojure.test :as t]))
+   [clojure.test :as t]
+   [clojure.string :as str]))
 
 (defn- with-exceptions [continuation]
   (when (some? continuation)
@@ -24,78 +25,86 @@
        (= (ex-data a)
           (ex-data b))))
 
+(defn- add-message-tag [{:keys [message] :as report} tag]
+  (cond
+    (nil? message) report
+    (nil? tag)     report
+    :else          (assoc report :message (str tag " / " message))))
+
 (defn- test-first-item [{:keys [report continuation]} {:keys [args]}]
   (let [[effect continuation] (continuation args)]
     {:report        report
      :actual-effect effect
      :continuation  continuation}))
 
-(defn- test-middle-item [{:keys [report actual-effect continuation]} {:keys [effect coeffect]}]
-  (cond
-    (not= :pass (:type report))
-    {:report report}
+(defn- test-middle-item [{:keys [report actual-effect continuation]} {:keys [effect coeffect tag]}]
+  (-> (cond
+        (not= :pass (:type report))
+        {:report report}
 
-    (nil? continuation)
-    {:report {:type     :fail
-              :expected effect
-              :actual   actual-effect
-              :message  "Misssed effect"}}
+        (nil? continuation)
+        {:report {:type     :fail
+                  :expected effect
+                  :actual   actual-effect
+                  :message  "Misssed effect"}}
 
-    (not= effect actual-effect)
-    {:report {:type     :fail
-              :expected effect
-              :actual   actual-effect
-              :message  "Wrong effect"}}
+        (not= effect actual-effect)
+        {:report {:type     :fail
+                  :expected effect
+                  :actual   actual-effect
+                  :message  "Wrong effect"}}
 
-    :else
-    (let [[actual-effect continuation] (continuation coeffect)]
-      {:report        report
-       :actual-effect actual-effect
-       :continuation  continuation})))
+        :else
+        (let [[actual-effect continuation] (continuation coeffect)]
+          {:report        report
+           :actual-effect actual-effect
+           :continuation  continuation}))
+      (update :report add-message-tag tag)))
 
 (defn- test-middle-items [ctx items]
   (reduce test-middle-item ctx items))
 
 (defn- test-last-item [{:keys [report actual-effect continuation]}
-                       {:keys [return final-effect throw]}]
-  (cond
-    (not= :pass (:type report))
-    {:report report}
+                       {:keys [return final-effect throw tag]}]
+  (-> (cond
+        (not= :pass (:type report))
+        {:report report}
 
-    (and (some? final-effect)
-         (= final-effect actual-effect))
-    {:report report}
+        (and (some? final-effect)
+             (= final-effect actual-effect))
+        {:report report}
 
-    (some? final-effect)
-    {:report {:type     :fail
-              :expected final-effect
-              :actual   actual-effect
-              :message  "Wrong final effect"}}
+        (some? final-effect)
+        {:report {:type     :fail
+                  :expected final-effect
+                  :actual   actual-effect
+                  :message  "Wrong final effect"}}
 
-    (and (some? throw)
-         (equal-exceptions? throw actual-effect))
-    {:report report}
+        (and (some? throw)
+             (equal-exceptions? throw actual-effect))
+        {:report report}
 
-    (some? throw)
-    {:report {:type     :fail
-              :expected throw
-              :actual   actual-effect
-              :message  "Wrong exception"}}
+        (some? throw)
+        {:report {:type     :fail
+                  :expected throw
+                  :actual   actual-effect
+                  :message  "Wrong exception"}}
 
-    (some? continuation)
-    {:report {:type     :fail
-              :expected nil
-              :actual   actual-effect
-              :message  "Extra effect"}}
+        (some? continuation)
+        {:report {:type     :fail
+                  :expected nil
+                  :actual   actual-effect
+                  :message  "Extra effect"}}
 
-    (not= return actual-effect)
-    {:report {:type     :fail
-              :expected return
-              :actual   actual-effect
-              :message  "Wrong return"}}
+        (not= return actual-effect)
+        {:report {:type     :fail
+                  :expected return
+                  :actual   actual-effect
+                  :message  "Wrong return"}}
 
-    :else
-    {:report report}))
+        :else
+        {:report report})
+      (update :report add-message-tag tag)))
 
 (defn test* [continuation script]
   {:pre [(<= 2 (count script))]}
