@@ -4,6 +4,12 @@
    [clojure.test :as t]
    [clojure.string :as str]))
 
+(defprotocol EffectMatcher
+  (effect-matches [matcher actual]))
+
+(defprotocol ExceptionMatcher
+  (exception-matches [matcher actual]))
+
 (defn- with-exceptions [continuation]
   (when (some? continuation)
     (fn [coeffect]
@@ -13,17 +19,6 @@
           [effect continuation])
         (catch #?(:clj RuntimeException, :cljs js/Error) ex
           [ex nil])))))
-
-(defn- exception? [x]
-  (instance? #?(:clj Throwable, :cljs js/Error) x))
-
-(defn- equal-exceptions? [a b]
-  (and (= (type a)
-          (type b))
-       (= (ex-message a)
-          (ex-message b))
-       (= (ex-data a)
-          (ex-data b))))
 
 (defn- add-message-tag [message tag]
   (->> [tag message]
@@ -54,18 +49,15 @@
               :actual   actual-effect
               :message  (add-message-tag "Misssed effect" tag)}}
 
-    (= effect actual-effect)
-    (next-step ctx coeffect)
-
-    (and (fn? effect)
-         (effect actual-effect))
-    (next-step ctx coeffect)
-
-    :else
+    (and (some? effect)
+         (not (effect-matches effect actual-effect)))
     {:report {:type     :fail
               :expected effect
               :actual   actual-effect
-              :message  (add-message-tag "Wrong effect" tag)}}))
+              :message  (add-message-tag "Wrong effect" tag)}}
+
+    :else
+    (next-step ctx coeffect)))
 
 (defn- test-middle-items [ctx items]
   (reduce test-middle-item ctx items))
@@ -77,11 +69,7 @@
     {:report report}
 
     (and (some? final-effect)
-         (= final-effect actual-effect))
-    {:report report}
-
-    (and (fn? final-effect)
-         (final-effect actual-effect))
+         (effect-matches final-effect actual-effect))
     {:report report}
 
     (some? final-effect)
@@ -91,11 +79,7 @@
               :message  (add-message-tag "Wrong final effect" tag)}}
 
     (and (some? thrown)
-         (equal-exceptions? thrown actual-effect))
-    {:report report}
-
-    (and (fn? thrown)
-         (thrown actual-effect))
+         (exception-matches thrown actual-effect))
     {:report report}
 
     (some? thrown)
@@ -110,11 +94,7 @@
               :actual   actual-effect
               :message  (add-message-tag "Extra effect" tag)}}
 
-    (= return actual-effect)
-    {:report report}
-
-    (and (fn? return)
-         (return actual-effect))
+    (effect-matches return actual-effect)
     {:report report}
 
     :else
@@ -139,3 +119,30 @@
 (defn test [continuation script]
   (-> (test* continuation script)
       (t/do-report)))
+
+(extend-protocol EffectMatcher
+  nil
+  (effect-matches [_ effect]
+    (nil? effect))
+
+  #?(:clj Object :cljs default)
+  (effect-matches [matcher effect]
+    (= matcher effect))
+
+  #?(:clj clojure.lang.Fn :cljs function)
+  (effect-matches [matcher effect]
+    (matcher effect)))
+
+(extend-protocol ExceptionMatcher
+  #?(:clj Throwable, :cljs default)
+  (exception-matches [a b]
+    (and (= (type a)
+            (type b))
+         (= (ex-message a)
+            (ex-message b))
+         (= (ex-data a)
+            (ex-data b))))
+
+  #?(:clj clojure.lang.Fn :cljs function)
+  (exception-matches [matcher exception]
+    (matcher exception)))
