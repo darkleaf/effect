@@ -36,7 +36,14 @@
      :actual-effect effect
      :continuation  continuation}))
 
-(defn- test-middle-item [{:keys [report actual-effect continuation]} {:keys [effect coeffect tag]}]
+(defn- next-step [{:keys [report continuation]} coeffect]
+  (let [[actual-effect continuation] (continuation coeffect)]
+    {:report        report
+     :actual-effect actual-effect
+     :continuation  continuation}))
+
+(defn- test-middle-item [{:keys [report actual-effect continuation] :as ctx}
+                         {:keys [effect coeffect tag]}]
   (cond
     (not= :pass (:type report))
     {:report report}
@@ -47,17 +54,18 @@
               :actual   actual-effect
               :message  (add-message-tag "Misssed effect" tag)}}
 
-    (not= effect actual-effect)
+    (= effect actual-effect)
+    (next-step ctx coeffect)
+
+    (and (fn? effect)
+         (effect actual-effect))
+    (next-step ctx coeffect)
+
+    :else
     {:report {:type     :fail
               :expected effect
               :actual   actual-effect
-              :message  (add-message-tag "Wrong effect" tag)}}
-
-    :else
-    (let [[actual-effect continuation] (continuation coeffect)]
-      {:report        report
-       :actual-effect actual-effect
-       :continuation  continuation})))
+              :message  (add-message-tag "Wrong effect" tag)}}))
 
 (defn- test-middle-items [ctx items]
   (reduce test-middle-item ctx items))
@@ -72,6 +80,10 @@
          (= final-effect actual-effect))
     {:report report}
 
+    (and (fn? final-effect)
+         (final-effect actual-effect))
+    {:report report}
+
     (some? final-effect)
     {:report {:type     :fail
               :expected final-effect
@@ -80,6 +92,10 @@
 
     (and (some? throw)
          (equal-exceptions? throw actual-effect))
+    {:report report}
+
+    (and (fn? throw)
+         (apply throw [actual-effect])) ;;fix me
     {:report report}
 
     (some? throw)
@@ -94,14 +110,18 @@
               :actual   actual-effect
               :message  (add-message-tag "Extra effect" tag)}}
 
-    (not= return actual-effect)
+    (= return actual-effect)
+    {:report report}
+
+    (and (fn? return)
+         (return actual-effect))
+    {:report report}
+
+    :else
     {:report {:type     :fail
               :expected return
               :actual   actual-effect
-              :message  (add-message-tag "Wrong return" tag)}}
-
-    :else
-    {:report report}))
+              :message  (add-message-tag "Wrong return" tag)}}))
 
 (defn test* [continuation script]
   {:pre [(<= 2 (count script))]}

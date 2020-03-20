@@ -139,3 +139,85 @@
             report (script/test* continuation script)]
         (t/is (= :fail (:type report)))
         (t/is (= "Wrong exception" (:message report)))))))
+
+(t/deftest script-predicate
+  (let [ef           (fn [x]
+                       (with-effects
+                         (! (effect [:some-eff x]))))
+        continuation (e/continuation ef)]
+    (t/testing "correct"
+      (let [script [{:args [:value]}
+                    {:effect   #(= [:some-eff :value] %)
+                     :coeffect :other-value}
+                    {:return #(= :other-value %)}]]
+        (script/test continuation script)))
+    (t/testing "final-effect"
+      (let [script [{:args [:value]}
+                    {:final-effect #(= [:some-eff :value] %)}]]
+        (script/test continuation script)))
+    (t/testing "wrong effect"
+      (let [pred   #(= [:wrong] %)
+            script [{:args [:value]}
+                    {:effect   pred
+                     :coeffect :other-value}
+                    {:return :other-value}]]
+        (t/is (= {:type     :fail
+                  :expected pred
+                  :actual   [:some-eff :value]
+                  :message  "Wrong effect"}
+                 (script/test* continuation script)))))
+    (t/testing "wrong return"
+      (let [pred   #(= :wrong %)
+            script [{:args [:value]}
+                    {:effect   #(= [:some-eff :value] %)
+                     :coeffect :other-value}
+                    {:return pred}]]
+        (t/is (= {:type     :fail
+                  :expected pred
+                  :actual   :other-value
+                  :message  "Wrong return"}
+                 (script/test* continuation script)))))
+    (t/testing "wrong final-effect"
+      (let [pred   #(= [:wrong] %)
+            script [{:args [:value]}
+                    {:final-effect pred}]]
+        (t/is (= {:type     :fail
+                  :expected pred
+                  :actual   [:some-eff :value]
+                  :message  "Wrong final effect"}
+                 (script/test* continuation script)))))
+    (t/testing "missed effect"
+      (let [pred   #(= [:extra-eff :value] %)
+            script [{:args [:value]}
+                    {:effect   #(= [:some-eff :value] %)
+                     :coeffect :other-value}
+                    {:effect   pred
+                     :coeffect :some-value}
+                    {:return #(= :some-other-value %)}]]
+        (t/is (= {:type     :fail
+                  :expected pred
+                  :actual   :other-value
+                  :message  "Misssed effect"}
+                 (script/test* continuation script)))))))
+
+(t/deftest exception-predicate
+  (let [ef           (fn []
+                       (with-effects
+                         (! (effect [:some-eff]))
+                         (throw (ex-info "Message" {:foo :bar}))))
+        continuation (e/continuation ef)]
+    (t/testing "correct"
+      (let [script [{:args []}
+                    {:effect   [:some-eff]
+                     :coeffect :some-coeff}
+                    {:throw #(and (= "Message" (ex-message %))
+                                  (= {:foo :bar} (ex-data %)))}]]
+        (script/test continuation script)))
+    (t/testing "wrong exception"
+      (let [script [{:args []}
+                    {:effect   [:some-eff]
+                     :coeffect :some-coeff}
+                    {:throw (constantly false)}]
+            report (script/test* continuation script)]
+        (t/is (= :fail (:type report)))
+        (t/is (= "Wrong exception" (:message report)))))))
