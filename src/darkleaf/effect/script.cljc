@@ -71,7 +71,7 @@
   (reduce test-middle-item ctx items))
 
 (defn- test-last-item [{:keys [report actual-effect continuation]}
-                       {:keys [return final-effect throw tag]}]
+                       {:keys [return final-effect thrown tag]}]
   (cond
     (not= :pass (:type report))
     {:report report}
@@ -90,17 +90,17 @@
               :actual   actual-effect
               :message  (add-message-tag "Wrong final effect" tag)}}
 
-    (and (some? throw)
-         (equal-exceptions? throw actual-effect))
+    (and (some? thrown)
+         (equal-exceptions? thrown actual-effect))
     {:report report}
 
-    (and (fn? throw)
-         (apply throw [actual-effect])) ;;fix me
+    (and (fn? thrown)
+         (thrown actual-effect))
     {:report report}
 
-    (some? throw)
+    (some? thrown)
     {:report {:type     :fail
-              :expected throw
+              :expected thrown
               :actual   actual-effect
               :message  (add-message-tag "Wrong exception" tag)}}
 

@@ -105,7 +105,7 @@
       (let [script [{:args []}
                     {:effect   [:some-eff]
                      :coeffect :some-coeff}
-                    {:throw (ex-info "Message" {:foo :bar})}]]
+                    {:thrown (ex-info "Message" {:foo :bar})}]]
         (script/test continuation script)))
     (t/testing "unexpected exception"
       (let [script [{:args []}
@@ -118,8 +118,8 @@
       (let [script [{:args []}
                     {:effect   [:some-eff]
                      :coeffect :some-coeff}
-                    {:throw #?(:clj  (RuntimeException. "Some msg")
-                               :cljs (js/Error. "Some msg"))}]
+                    {:thrown #?(:clj  (RuntimeException. "Some msg")
+                                :cljs (js/Error. "Some msg"))}]
             report (script/test* continuation script)]
         (t/is (= :fail (:type report)))
         (t/is (= "Wrong exception" (:message report)))))
@@ -127,7 +127,7 @@
       (let [script [{:args []}
                     {:effect   [:some-eff]
                      :coeffect :some-coeff}
-                    {:throw (ex-info "Wrong message" {:foo :bar})}]
+                    {:thrown (ex-info "Wrong message" {:foo :bar})}]
             report (script/test* continuation script)]
         (t/is (= :fail (:type report)))
         (t/is (= "Wrong exception" (:message report)))))
@@ -135,7 +135,7 @@
       (let [script [{:args []}
                     {:effect   [:some-eff]
                      :coeffect :some-coeff}
-                    {:throw (ex-info "Message" {:foo :wrong})}]
+                    {:thrown (ex-info "Message" {:foo :wrong})}]
             report (script/test* continuation script)]
         (t/is (= :fail (:type report)))
         (t/is (= "Wrong exception" (:message report)))))))
@@ -210,14 +210,14 @@
       (let [script [{:args []}
                     {:effect   [:some-eff]
                      :coeffect :some-coeff}
-                    {:throw #(and (= "Message" (ex-message %))
-                                  (= {:foo :bar} (ex-data %)))}]]
+                    {:thrown #(and (= "Message" (ex-message %))
+                                   (= {:foo :bar} (ex-data %)))}]]
         (script/test continuation script)))
     (t/testing "wrong exception"
       (let [script [{:args []}
                     {:effect   [:some-eff]
                      :coeffect :some-coeff}
-                    {:throw (constantly false)}]
+                    {:thrown (constantly false)}]
             report (script/test* continuation script)]
         (t/is (= :fail (:type report)))
         (t/is (= "Wrong exception" (:message report)))))))
