@@ -5,9 +5,11 @@
    [clojure.string :as str]))
 
 (defprotocol EffectMatcher
+  :extend-via-metadata true
   (effect-matches [matcher actual]))
 
 (defprotocol ExceptionMatcher
+  :extend-via-metadata true
   (exception-matches [matcher actual]))
 
 (defn- with-exceptions [continuation]
