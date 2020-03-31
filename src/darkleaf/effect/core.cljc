@@ -38,8 +38,8 @@
               val       (i/with-coeffect coeffect coroutine)]
           (case (i/kind val)
             :effect    [val (stack->continuation stack)]
-            :coroutine (recur (conj stack val) nil)
-            :wrapped   (recur  stack (first val))
+            :coroutine (recur (conj stack val) ::not-used)
+            :wrapped   (recur stack (first val))
             ;; coroutine is finished
             (recur (pop stack) val)))))))
 
