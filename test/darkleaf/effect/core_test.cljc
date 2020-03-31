@@ -217,3 +217,14 @@
                (t/is (= "Test" (ex-message value)))
                (done))]
        (f #(check :respond %) #(check :raise %))))))
+
+(t/deftest multi-shot
+  (let [ef                 (fn []
+                             (with-effects
+                               (! (effect [:first]))
+                               (! (effect [:second]))
+                               (! (effect [:third]))))
+        continuation       (e/continuation ef)
+        [eff continuation] (continuation [])]
+    (t/is (= (first (continuation "first coeffect"))
+             (first (continuation "first coeffect"))))))

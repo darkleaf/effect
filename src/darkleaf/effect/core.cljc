@@ -28,13 +28,12 @@
 
 (defn- stack->continuation [stack]
   (fn [coeffect]
-    (loop [stack    stack
+    (loop [stack    (update-head stack (fn clone [mutable-coroutine]
+                                         (mutable-coroutine identity)))
            coeffect coeffect]
       (if (empty? stack)
         [coeffect nil]
-        (let [stack     (update-head stack (fn clone [mutable-coroutine]
-                                             (mutable-coroutine identity)))
-              coroutine (peek stack)
+        (let [coroutine (peek stack)
               val       (i/with-coeffect coeffect coroutine)]
           (case (i/kind val)
             :effect    [val (stack->continuation stack)]
