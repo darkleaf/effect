@@ -178,7 +178,20 @@
         (t/is (thrown-with-msg? #?(:clj  clojure.lang.ExceptionInfo
                                    :cljs cljs.core.ExceptionInfo)
                                 #"Test"
-                                (f)))))))
+                                (f)))))
+    (t/testing "catch in ef"
+      (let [ef                (fn []
+                                (with-effects
+                                  (try
+                                    (! (effect [:prn "Throw!"]))
+                                    (catch #?(:clj Throwable, :cljs js/Error) error
+                                      :error))))
+            continuation      (e/continuation ef)
+            effect-!>coeffect (fn [effect]
+                                (throw (ex-info "Test" {})))
+            f                 (fn []
+                                (e/perform effect-!>coeffect continuation []))]
+        (t/is (= :error (f)))))))
 
 (t/deftest exceptions-in-ef-async
   (let [ef                (fn []
@@ -215,6 +228,26 @@
      (letfn [(check [kind value]
                (t/is (= :raise kind))
                (t/is (= "Test" (ex-message value)))
+               (done))]
+       (f #(check :respond %) #(check :raise %))))))
+
+(t/deftest exceptions-catch-in-ef-async
+  (let [ef                (fn []
+                            (with-effects
+                              (try
+                                (! (effect [:prn "Throw"]))
+                                (catch #?(:clj Throwable, :cljs js/Error) error
+                                  :error))))
+        continuation      (e/continuation ef)
+        effect-!>coeffect (fn [effect respond raise]
+                            (next-tick raise (ex-info "Test" {})))
+        f                 (fn [respond raise]
+                            (e/perform effect-!>coeffect continuation []
+                                       respond raise))]
+    (#?@(:cljs [t/async done], :clj [let [done (fn [])]])
+     (letfn [(check [kind value]
+               (t/is (= :respond kind))
+               (t/is (= :error value))
                (done))]
        (f #(check :respond %) #(check :raise %))))))
 

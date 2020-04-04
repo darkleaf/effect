@@ -50,7 +50,17 @@
           coeffect  ::not-used]
       (cont coeffect))))
 
-(defn perform
+(defn- wrap-exception-as-value [f]
+  (fn effect-!>coeffect
+    ([effect]
+     (try
+       (f effect)
+       (catch #?(:clj Throwable, :cljs js/Error) error
+         error)))
+    ([effect respond raise]
+     (f effect respond respond))))
+
+(defn- perform-impl
   ([effect-!>coeffect continuation coeffect-or-args]
    (loop [[effect continuation] (continuation coeffect-or-args)]
      (if (nil? continuation)
@@ -63,8 +73,17 @@
          (respond effect)
          (effect-!>coeffect effect
                             (fn [coeffect]
-                              (perform effect-!>coeffect continuation coeffect
-                                       respond raise))
+                              (perform-impl effect-!>coeffect continuation coeffect
+                                            respond raise))
                             raise)))
-     (catch #?(:clj java.lang.Throwable, :cljs js/Error) error
+     (catch #?(:clj Throwable, :cljs js/Error) error
        (raise error)))))
+
+(defn perform
+  ([effect-!>coeffect continuation effect-or-args]
+   (perform-impl (wrap-exception-as-value effect-!>coeffect)
+                 continuation effect-or-args))
+  ([effect-!>coeffect continuation effect-or-args respond raise]
+   (perform-impl (wrap-exception-as-value effect-!>coeffect)
+                 continuation effect-or-args
+                 respond raise)))
