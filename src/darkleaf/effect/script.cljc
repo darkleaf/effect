@@ -2,7 +2,9 @@
   (:refer-clojure :exclude [test])
   (:require
    [clojure.test :as t]
-   [clojure.string :as str]))
+   [clojure.string :as str]
+   [clojure.data :as data]
+   [darkleaf.effect.internal :as i]))
 
 (defprotocol EffectMatcher
   :extend-via-metadata true
@@ -11,6 +13,14 @@
 (defprotocol ExceptionMatcher
   :extend-via-metadata true
   (exception-matches [matcher actual]))
+
+(defprotocol Diff
+  :extend-via-metadata true
+  (diff [matcher actual]))
+
+(defn- cider-diffs [matcher actual]
+  (when-some [d (diff matcher actual)]
+    [[actual d]]))
 
 (defn- with-exceptions [continuation]
   (when (some? continuation)
@@ -49,6 +59,7 @@
     {:report {:type     :fail
               :expected effect
               :actual   actual-effect
+              :diffs    (cider-diffs effect actual-effect)
               :message  (add-message-tag "Misssed effect" tag)}}
 
     (and (some? effect)
@@ -56,6 +67,7 @@
     {:report {:type     :fail
               :expected effect
               :actual   actual-effect
+              :diffs    (cider-diffs effect actual-effect)
               :message  (add-message-tag "Wrong effect" tag)}}
 
     :else
@@ -78,6 +90,7 @@
     {:report {:type     :fail
               :expected final-effect
               :actual   actual-effect
+              :diffs    (cider-diffs final-effect actual-effect)
               :message  (add-message-tag "Wrong final effect" tag)}}
 
     (and (some? thrown)
@@ -88,6 +101,7 @@
     {:report {:type     :fail
               :expected thrown
               :actual   actual-effect
+              :diffs    (cider-diffs thrown actual-effect)
               :message  (add-message-tag "Wrong exception" tag)}}
 
     (some? continuation)
@@ -103,6 +117,7 @@
     {:report {:type     :fail
               :expected return
               :actual   actual-effect
+              :diffs    (cider-diffs return actual-effect)
               :message  (add-message-tag "Wrong return" tag)}}))
 
 (defn test* [continuation script]
@@ -148,3 +163,23 @@
   #?(:clj clojure.lang.Fn :cljs function)
   (exception-matches [matcher exception]
     (matcher exception)))
+
+(defn- ex->data [ex]
+  {:type    (type ex)
+   :message (ex-message ex)
+   :data    (ex-data ex)})
+
+(extend-protocol Diff
+  #?(:clj Object :cljs default)
+  (diff [matcher actual]
+    (data/diff matcher actual))
+
+  #?(:clj clojure.lang.Fn :cljs function)
+  (diff [_ _]
+    nil)
+
+  #?(:clj Throwable :cljs js/Error)
+  (diff [matcher actual]
+    (when (i/exception? actual)
+      (data/diff (ex->data matcher)
+                 (ex->data actual)))))

@@ -27,6 +27,8 @@
         (t/is (= {:type     :fail
                   :expected [:wrong]
                   :actual   [:some-eff :value]
+                  :diffs    [[[:some-eff :value]
+                              [[:wrong] [:some-eff :value] nil]]],
                   :message  "Wrong effect"}
                  (script/test* continuation script)))))
     (t/testing "wrong return"
@@ -37,14 +39,18 @@
         (t/is (= {:type     :fail
                   :expected :wrong
                   :actual   :other-value
+                  :diffs    [[:other-value
+                              [:wrong :other-value nil]]]
                   :message  "Wrong return"}
                  (script/test* continuation script)))))
     (t/testing "wrong final-effect"
       (let [script [{:args [:value]}
                     {:final-effect [:wrong]}]]
-        (t/is (= {:type     :fail,
-                  :expected [:wrong],
-                  :actual   [:some-eff :value],
+        (t/is (= {:type     :fail
+                  :expected [:wrong]
+                  :actual   [:some-eff :value]
+                  :diffs    [[[:some-eff :value]
+                              [[:wrong] [:some-eff :value] nil]]]
                   :message  "Wrong final effect"}
                  (script/test* continuation script)))))
     (t/testing "extra effect"
@@ -65,6 +71,8 @@
         (t/is (= {:type     :fail
                   :expected [:extra-eff :value]
                   :actual   :other-value
+                  :diffs    [[:other-value
+                              [[:extra-eff :value] :other-value nil]]]
                   :message  "Misssed effect"}
                  (script/test* continuation script)))))))
 
@@ -83,6 +91,8 @@
     (t/is (= {:type     :fail
               :expected [:eff-1]
               :actual   [:wrong]
+              :diffs    [[[:wrong]
+                          [[:eff-1] [:wrong] nil]]],
               :message  "10 / Wrong effect"}
              (script/test* continuation script)))))
 
@@ -113,6 +123,9 @@
                      :coeffect :some-coeff}
                     {:return :ok}]
             report (script/test* continuation script)]
+
+
+
         (t/is (= :fail (:type report)))))
     (t/testing "wrong exception type"
       (let [script [{:args []}
@@ -164,6 +177,7 @@
         (t/is (= {:type     :fail
                   :expected pred
                   :actual   [:some-eff :value]
+                  :diffs    nil
                   :message  "Wrong effect"}
                  (script/test* continuation script)))))
     (t/testing "wrong return"
@@ -175,6 +189,7 @@
         (t/is (= {:type     :fail
                   :expected pred
                   :actual   :other-value
+                  :diffs    nil
                   :message  "Wrong return"}
                  (script/test* continuation script)))))
     (t/testing "wrong final-effect"
@@ -184,6 +199,7 @@
         (t/is (= {:type     :fail
                   :expected pred
                   :actual   [:some-eff :value]
+                  :diffs    nil
                   :message  "Wrong final effect"}
                  (script/test* continuation script)))))
     (t/testing "missed effect"
@@ -197,6 +213,7 @@
         (t/is (= {:type     :fail
                   :expected pred
                   :actual   :other-value
+                  :diffs    nil
                   :message  "Misssed effect"}
                  (script/test* continuation script)))))))
 
