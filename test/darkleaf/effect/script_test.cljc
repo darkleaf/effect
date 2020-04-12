@@ -147,3 +147,19 @@
             report (script/test* continuation script)]
         (t/is (= :fail (:type report)))
         (t/is (= "Wrong exception" (:message report)))))))
+
+(t/deftest matcher-example
+  (let [ef           (fn [x]
+                       (with-effects
+                         (! (effect [:some-eff x]))))
+        continuation (e/continuation ef)
+        script       [{:args [#"some-re"]}
+                      {:effect   (reify script/Matcher
+                                   (match [_ actual]
+                                     (if-not (and (= :some-eff (-> actual first))
+                                                  (= (str #"some-re") (-> actual second str)))
+                                       {:expected [:some-eff #"some-re"]
+                                        :actual   actual})))
+                       :coeffect :other-value}
+                      {:return :other-value}]]
+    (script/test continuation script)))
