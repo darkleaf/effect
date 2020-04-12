@@ -6,21 +6,9 @@
    [clojure.data :as data]
    [darkleaf.effect.internal :as i]))
 
-(defprotocol EffectMatcher
+(defprotocol Matcher
   :extend-via-metadata true
-  (effect-matches [matcher actual]))
-
-(defprotocol ExceptionMatcher
-  :extend-via-metadata true
-  (exception-matches [matcher actual]))
-
-(defprotocol Diff
-  :extend-via-metadata true
-  (diff [matcher actual]))
-
-(defn- cider-diffs [matcher actual]
-  (when-some [d (diff matcher actual)]
-    [[actual d]]))
+  (match [matcher actual]))
 
 (defn- with-exceptions [continuation]
   (when (some? continuation)
@@ -50,75 +38,71 @@
      :continuation  continuation}))
 
 (defn- test-middle-item [{:keys [report actual-effect continuation] :as ctx}
-                         {:keys [effect coeffect tag]}]
-  (cond
-    (not= :pass (:type report))
-    {:report report}
+                         {:keys [effect coeffect tag] :as item}]
+  (i/<<-
+   (if (not= :pass (:type report))
+     {:report report})
 
-    (nil? continuation)
-    {:report {:type     :fail
-              :expected effect
-              :actual   actual-effect
-              :diffs    (cider-diffs effect actual-effect)
-              :message  (add-message-tag "Misssed effect" tag)}}
+   (if (nil? continuation)
+     {:report {:type     :fail
+               :expected effect
+               :actual   actual-effect
+               :message  (add-message-tag "Missed effect" tag)}})
 
-    (and (some? effect)
-         (not (effect-matches effect actual-effect)))
-    {:report {:type     :fail
-              :expected effect
-              :actual   actual-effect
-              :diffs    (cider-diffs effect actual-effect)
-              :message  (add-message-tag "Wrong effect" tag)}}
+   (if (contains? item :effect)
+     (if-some [report (match effect actual-effect)]
+       {:report (assoc report
+                       :type :fail
+                       :message (add-message-tag "Wrong effect" tag))}
+       (next-step ctx coeffect)))
 
-    :else
-    (next-step ctx coeffect)))
+   {:report {:type     :fail
+             :expected '(contains? script-item :effect)
+             :actual   item
+             :message  (add-message-tag "Wrong script item" tag)}}))
 
 (defn- test-middle-items [ctx items]
   (reduce test-middle-item ctx items))
 
 (defn- test-last-item [{:keys [report actual-effect continuation]}
-                       {:keys [return final-effect thrown tag]}]
-  (cond
-    (not= :pass (:type report))
-    {:report report}
+                       {:keys [return final-effect thrown tag] :as item}]
+  (i/<<-
+   (if (not= :pass (:type report))
+     {:report report})
 
-    (and (some? final-effect)
-         (effect-matches final-effect actual-effect))
-    {:report report}
+   (if (contains? item :final-effect)
+     (if-some [report (match final-effect actual-effect)]
+       {:report (assoc report
+                       :type :fail
+                       :message (add-message-tag "Wrong final effect" tag))}
+       {:report report}))
 
-    (some? final-effect)
-    {:report {:type     :fail
-              :expected final-effect
-              :actual   actual-effect
-              :diffs    (cider-diffs final-effect actual-effect)
-              :message  (add-message-tag "Wrong final effect" tag)}}
+   (if (contains? item :thrown)
+     (if-some [report (match thrown actual-effect)]
+       {:report (assoc report
+                       :type :fail
+                       :message (add-message-tag "Wrong exception" tag))}
+       {:report report}))
 
-    (and (some? thrown)
-         (exception-matches thrown actual-effect))
-    {:report report}
+   (if (some? continuation)
+     {:report {:type     :fail
+               :expected nil
+               :actual   actual-effect
+               :message  (add-message-tag "Extra effect" tag)}})
 
-    (some? thrown)
-    {:report {:type     :fail
-              :expected thrown
-              :actual   actual-effect
-              :diffs    (cider-diffs thrown actual-effect)
-              :message  (add-message-tag "Wrong exception" tag)}}
+   (if (contains? item :return)
+     (if-some [report (match return actual-effect)]
+       {:report (assoc report
+                       :type :fail
+                       :message (add-message-tag "Wrong return" tag))}
+       {:report report}))
 
-    (some? continuation)
-    {:report {:type     :fail
-              :expected nil
-              :actual   actual-effect
-              :message  (add-message-tag "Extra effect" tag)}}
-
-    (effect-matches return actual-effect)
-    {:report report}
-
-    :else
-    {:report {:type     :fail
-              :expected return
-              :actual   actual-effect
-              :diffs    (cider-diffs return actual-effect)
-              :message  (add-message-tag "Wrong return" tag)}}))
+   {:report {:type     :fail
+             :expected '(or (contains? script-item :return)
+                            (contains? script-item :final-effect)
+                            (contains? script-item :thrown))
+             :actual   item
+             :message  (add-message-tag "Wrong script item" tag)}}))
 
 (defn test* [continuation script]
   {:pre [(<= 2 (count script))]}
@@ -137,49 +121,34 @@
   (-> (test* continuation script)
       (t/do-report)))
 
-(extend-protocol EffectMatcher
-  nil
-  (effect-matches [_ effect]
-    (nil? effect))
-
-  #?(:clj Object :cljs default)
-  (effect-matches [matcher effect]
-    (= matcher effect))
-
-  #?(:clj clojure.lang.Fn :cljs function)
-  (effect-matches [matcher effect]
-    (matcher effect)))
-
-(extend-protocol ExceptionMatcher
-  #?(:clj Throwable, :cljs default)
-  (exception-matches [a b]
-    (and (= (type a)
-            (type b))
-         (= (ex-message a)
-            (ex-message b))
-         (= (ex-data a)
-            (ex-data b))))
-
-  #?(:clj clojure.lang.Fn :cljs function)
-  (exception-matches [matcher exception]
-    (matcher exception)))
-
 (defn- ex->data [ex]
   {:type    (type ex)
    :message (ex-message ex)
    :data    (ex-data ex)})
 
-(extend-protocol Diff
+(extend-protocol Matcher
+  nil
+  (match [_ actual]
+    (if-not (nil? actual)
+      {:expected nil
+       :actual actual}))
+
   #?(:clj Object :cljs default)
-  (diff [matcher actual]
-    (data/diff matcher actual))
+  (match [matcher actual]
+    (when (not= matcher actual)
+      {:expected matcher
+       :actual   actual
+       :diffs    [[actual (data/diff matcher actual)]]}))
 
-  #?(:clj clojure.lang.Fn :cljs function)
-  (diff [_ _]
-    nil)
-
-  #?(:clj Throwable :cljs js/Error)
-  (diff [matcher actual]
-    (when (i/exception? actual)
-      (data/diff (ex->data matcher)
-                 (ex->data actual)))))
+  #?(:clj Throwable, :cljs js/Error)
+  (match [matcher actual]
+    (i/<<-
+     (if-not (i/exception? actual)
+       {:expected matcher
+        :actual   actual})
+     (let [matcher-data (ex->data matcher)
+           actual-data  (ex->data actual)])
+     (if-not (= matcher-data actual-data)
+       {:expected matcher
+        :actual   actual
+        :diffs    [[actual (data/diff matcher-data actual-data)]]}))))

@@ -1,4 +1,5 @@
-(ns darkleaf.effect.internal)
+(ns darkleaf.effect.internal
+  #?(:cljs (:require-macros [darkleaf.effect.internal :refer [<<-]])))
 
 (defn kind [x]
   (-> x meta ::kind))
@@ -19,3 +20,6 @@
 (defn with-coeffect [coval coroutine]
   (binding [*coeffect* coval]
     (coroutine)))
+
+(defmacro <<- [& body]
+  `(->> ~@(reverse body)))
