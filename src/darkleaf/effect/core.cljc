@@ -14,7 +14,7 @@
     :coroutine x
     (i/with-kind [x] :wrapped)))
 
-(defmacro ^{:style/indent :defn} with-effects [& body]
+(defmacro with-effects [& body]
   `(i/with-kind
      (cr {! i/coeffect} ~@body)
      :coroutine))
