@@ -155,7 +155,7 @@
         continuation (e/continuation ef)
         script       [{:args [#"some-re"]}
                       {:effect   (reify script/Matcher
-                                   (match [_ actual]
+                                   (matcher-report [_ actual]
                                      (if-not (and (= :some-eff (-> actual first))
                                                   (= (str #"some-re") (-> actual second str)))
                                        {:expected [:some-eff #"some-re"]

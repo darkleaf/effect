@@ -8,7 +8,7 @@
 
 (defprotocol Matcher
   :extend-via-metadata true
-  (match [matcher actual]))
+  (matcher-report [matcher actual]))
 
 (defn- with-exceptions [continuation]
   (when (some? continuation)
@@ -50,7 +50,7 @@
                :message  (add-message-tag "Missed effect" tag)}})
 
    (if (contains? item :effect)
-     (if-some [report (match effect actual-effect)]
+     (if-some [report (matcher-report effect actual-effect)]
        {:report (assoc report
                        :type :fail
                        :message (add-message-tag "Wrong effect" tag))}
@@ -71,14 +71,14 @@
      {:report report})
 
    (if (contains? item :final-effect)
-     (if-some [report (match final-effect actual-effect)]
+     (if-some [report (matcher-report final-effect actual-effect)]
        {:report (assoc report
                        :type :fail
                        :message (add-message-tag "Wrong final effect" tag))}
        {:report report}))
 
    (if (contains? item :thrown)
-     (if-some [report (match thrown actual-effect)]
+     (if-some [report (matcher-report thrown actual-effect)]
        {:report (assoc report
                        :type :fail
                        :message (add-message-tag "Wrong exception" tag))}
@@ -91,7 +91,7 @@
                :message  (add-message-tag "Extra effect" tag)}})
 
    (if (contains? item :return)
-     (if-some [report (match return actual-effect)]
+     (if-some [report (matcher-report return actual-effect)]
        {:report (assoc report
                        :type :fail
                        :message (add-message-tag "Wrong return" tag))}
@@ -128,20 +128,20 @@
 
 (extend-protocol Matcher
   nil
-  (match [_ actual]
+  (matcher-report [_ actual]
     (if-not (nil? actual)
       {:expected nil
        :actual actual}))
 
   #?(:clj Object :cljs default)
-  (match [matcher actual]
+  (matcher-report [matcher actual]
     (when (not= matcher actual)
       {:expected matcher
        :actual   actual
        :diffs    [[actual (data/diff matcher actual)]]}))
 
   #?(:clj Throwable, :cljs js/Error)
-  (match [matcher actual]
+  (matcher-report [matcher actual]
     (i/<<-
      (if-not (i/exception? actual)
        {:expected matcher
