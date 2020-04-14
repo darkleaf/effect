@@ -7,13 +7,13 @@
 (defn with-kind [x kind]
   (vary-meta x assoc ::kind kind))
 
-(defn exception? [x]
+(defn throwable? [x]
   (instance? #?(:clj Throwable, :cljs js/Error) x))
 
 (declare ^:dynamic *coeffect*)
 
 (defn coeffect []
-  (if (exception? *coeffect*)
+  (if (throwable? *coeffect*)
     (throw *coeffect*)
     *coeffect*))
 

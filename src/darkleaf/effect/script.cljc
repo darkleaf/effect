@@ -143,7 +143,7 @@
   #?(:clj Throwable, :cljs js/Error)
   (matcher-report [matcher actual]
     (i/<<-
-     (if-not (i/exception? actual)
+     (if-not (i/throwable? actual)
        {:expected matcher
         :actual   actual})
      (let [matcher-data (ex->data matcher)
