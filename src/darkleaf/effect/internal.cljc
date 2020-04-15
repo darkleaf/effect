@@ -10,6 +10,12 @@
 (defn throwable? [x]
   (instance? #?(:clj Throwable, :cljs js/Error) x))
 
+(defn wrap-return-value [x]
+  (with-kind [x] :return-value))
+
+(defn unwrap-value [x]
+  (first x))
+
 (declare ^:dynamic *coeffect*)
 
 (defn coeffect []

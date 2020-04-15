@@ -149,6 +149,23 @@
                       {:return nil}]]
     (script/test continuation script)))
 
+(t/deftest higher-order-effect
+  (let [nested-ef    (fn []
+                       (with-effects
+                         (! (effect [:a]))
+                         (effect [:b])))
+        ef           (fn []
+                       (with-effects
+                         (! (! (nested-ef)))))
+        continuation (e/continuation ef)
+        script       [{:args []}
+                      {:effect   [:a]
+                       :coeffect nil}
+                      {:effect   [:b]
+                       :coeffect :some-value}
+                      {:return :some-value}]]
+     (script/test continuation script)))
+
 (t/deftest exceptions
   (t/testing "in ef"
     (let [ef                (fn []

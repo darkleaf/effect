@@ -8,21 +8,14 @@
 (defn effect [x]
   (i/with-kind x :effect))
 
-(defn- wrap-input-value [x]
-  (i/with-kind [x] :input-value))
-
-(defn- unwrap-input-value [x]
-  (first x))
-
 (defn ! [x]
-  (case (i/kind x)
-    :effect    x
-    :coroutine x
-    (wrap-input-value x)))
+  x)
 
 (defmacro with-effects [& body]
   `(i/with-kind
-     (cr {! i/coeffect} ~@body)
+     (cr {! i/coeffect}
+         (i/wrap-return-value
+          (do ~@body)))
      :coroutine))
 
 (defn- update-head [coll f & args]
@@ -44,11 +37,11 @@
         (let [coroutine (peek stack)
               val       (i/with-coeffect coeffect coroutine)]
           (case (i/kind val)
-            :effect      [val (stack->continuation stack)]
-            :coroutine   (recur (conj stack val) ::not-used)
-            :input-value (recur stack (unwrap-input-value val))
-            ;; coroutine is finished
-            (recur (pop stack) val)))))))
+            :effect       [val (stack->continuation stack)]
+            :coroutine    (recur (conj stack val) ::not-used)
+            :return-value (recur (pop stack) (i/unwrap-value val))
+            (recur stack val)))))))
+
 
 (defn continuation [effn]
   (fn [args]

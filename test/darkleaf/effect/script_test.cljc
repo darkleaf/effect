@@ -71,7 +71,7 @@
         (t/is (= {:type     :fail
                   :expected [:extra-eff :value]
                   :actual   :other-value
-                  :message  "Missed effect"}
+                  :message  "Unexpected return. An effect is expected."}
                  (script/test* continuation script)))))))
 
 (t/deftest tag

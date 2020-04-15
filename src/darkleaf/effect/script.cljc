@@ -47,7 +47,7 @@
      {:report {:type     :fail
                :expected effect
                :actual   actual-effect
-               :message  (add-message-tag "Missed effect" tag)}})
+               :message  (add-message-tag "Unexpected return. An effect is expected." tag)}})
 
    (if (contains? item :effect)
      (if-some [report (matcher-report effect actual-effect)]
