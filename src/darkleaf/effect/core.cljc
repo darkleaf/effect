@@ -42,7 +42,6 @@
             :return-value (recur (pop stack) (i/unwrap-value val))
             (recur stack val)))))))
 
-
 (defn continuation [effn]
   (fn [args]
     (let [coroutine (apply effn args)
