@@ -1,11 +1,15 @@
 (ns darkleaf.effect.middleware.contract)
 
+(defprotocol Matcher
+  :extend-via-metadata true
+  (matcher-report [matcher actual]))
+
 (defn- check! [x contract path]
-  (let [pred (get-in contract path)]
-    (if-not (ifn? pred)
-      (throw (ex-info "The predicate is wrong" {:pred pred :path path})))
-    (if-not (pred x)
-      (throw (ex-info "The value is mismatched by a predicate" {:actual x, :path path})))))
+  (let [matcher (get-in contract path)]
+    (if-not (satisfies? Matcher matcher)
+      (throw (ex-info "The matcher is wrong" {:matcher matcher :path path})))
+    (if-let [report (matcher-report matcher x)]
+      (throw (ex-info "The value is mismatched by a predicate" (assoc report :path path))))))
 
 (defn- wrap-contract* [continuation contract coeffect-path]
   (fn [coeffect]
@@ -21,3 +25,9 @@
 
 (defn wrap-contract [continuation contract]
   (wrap-contract* continuation contract [:args]))
+
+(extend-protocol Matcher
+  #?(:clj clojure.lang.Fn, :cljs function)
+  (matcher-report [matcher actual]
+    (if-not (matcher actual)
+      {:actual  actual})))
