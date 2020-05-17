@@ -72,6 +72,16 @@
                   :expected [:extra-eff :value]
                   :actual   :other-value
                   :message  "Unexpected return. An effect is expected."}
+                 (script/test* continuation script)))))
+    (t/testing "final-effect instead return"
+      (let [script [{:args [:value]}
+                    {:effect   [:some-eff :value]
+                     :coeffect :other-value}
+                    {:final-effect :other-value}]]
+        (t/is (= {:type     :fail
+                  :expected '(some? continuation)
+                  :actual   :other-value
+                  :message  "The function returned a value"}
                  (script/test* continuation script)))))))
 
 (t/deftest trivial-script

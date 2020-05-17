@@ -66,11 +66,16 @@
      {:report report})
 
    (if (contains? item :final-effect)
-     (if-some [report (matcher-report final-effect actual-effect)]
-       {:report (assoc report
-                       :type (if (i/throwable? actual-effect) :error :fail)
-                       :message "Wrong final effect")}
-       {:report report}))
+     (if (some? continuation)
+       (if-some [report (matcher-report final-effect actual-effect)]
+         {:report (assoc report
+                         :type (if (i/throwable? actual-effect) :error :fail)
+                         :message "Wrong final effect")}
+         {:report report})
+       {:report {:type     :fail
+                 :expected '(some? continuation)
+                 :actual   actual-effect
+                 :message  "The function returned a value"}}))
 
    (if (contains? item :thrown)
      (if-some [report (matcher-report thrown actual-effect)]
