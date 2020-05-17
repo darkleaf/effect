@@ -44,7 +44,7 @@
      {:report report})
 
    (if (nil? continuation)
-     {:report {:type     :fail
+     {:report {:type     (if (i/throwable? actual-effect) :error :fail)
                :expected effect
                :actual   actual-effect
                :message  (add-message-tag "Unexpected return. An effect is expected." tag)}})
@@ -73,7 +73,7 @@
    (if (contains? item :final-effect)
      (if-some [report (matcher-report final-effect actual-effect)]
        {:report (assoc report
-                       :type :fail
+                       :type (if (i/throwable? actual-effect) :error :fail)
                        :message (add-message-tag "Wrong final effect" tag))}
        {:report report}))
 
@@ -131,14 +131,15 @@
   (matcher-report [_ actual]
     (if-not (nil? actual)
       {:expected nil
-       :actual actual}))
+       :actual   actual}))
 
   #?(:clj Object :cljs default)
   (matcher-report [matcher actual]
     (when (not= matcher actual)
       {:expected matcher
        :actual   actual
-       :diffs    [[actual (data/diff matcher actual)]]}))
+       :diffs    (when-not (i/throwable? actual)
+                   [[actual (data/diff matcher actual)]])}))
 
   #?(:clj Throwable, :cljs js/Error)
   (matcher-report [matcher actual]
