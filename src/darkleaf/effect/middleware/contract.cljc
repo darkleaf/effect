@@ -7,9 +7,9 @@
 (defn- check! [x contract path]
   (let [matcher (get-in contract path)]
     (if-not (satisfies? Matcher matcher)
-      (throw (ex-info "The matcher is wrong" {:matcher matcher :path path})))
+      (throw (ex-info "The matcher is wrong" {::matcher matcher ::path path})))
     (if-let [report (matcher-report matcher x)]
-      (throw (ex-info "The value is mismatched by a predicate" (assoc report :path path))))))
+      (throw (ex-info "The value is mismatched by a matcher" (assoc report ::path path))))))
 
 (defn- wrap-contract* [continuation contract coeffect-path]
   (fn [coeffect]
@@ -30,4 +30,4 @@
   #?(:clj clojure.lang.Fn, :cljs function)
   (matcher-report [matcher actual]
     (if-not (matcher actual)
-      {:actual  actual})))
+      {::actual actual})))

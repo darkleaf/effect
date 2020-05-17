@@ -39,9 +39,9 @@
                              (e/continuation)
                              (contract/wrap-contract contract))
             script       [{:args [:wrong]}
-                          {:thrown (ex-info "The value is mismatched by a predicate"
-                                            {:actual [:wrong]
-                                             :path   [:args]})}]]
+                          {:thrown (ex-info "The value is mismatched by a matcher"
+                                            {::contract/actual [:wrong]
+                                             ::contract/path   [:args]})}]]
         (script/test continuation script)))
     (t/testing "return"
       (let [effn         (fn [x]
@@ -57,9 +57,9 @@
                            :coeffect :ok}
                           {:effect   [:effect-2 "str"]
                            :coeffect :ok}
-                          {:thrown (ex-info "The value is mismatched by a predicate"
-                                            {:actual :not-ok
-                                             :path   [:return]})}]]
+                          {:thrown (ex-info "The value is mismatched by a matcher"
+                                            {::contract/actual :not-ok
+                                             ::contract/path   [:return]})}]]
         (script/test continuation script)))
     (t/testing "effect"
       (let [effn         (fn [x]
@@ -71,9 +71,9 @@
                              (e/continuation)
                              (contract/wrap-contract contract))
             script       [{:args [:ok]}
-                          {:thrown (ex-info "The value is mismatched by a predicate"
-                                            {:actual [:effect-1 :wrong]
-                                             :path   [:effect-1 :effect]})}]]
+                          {:thrown (ex-info "The value is mismatched by a matcher"
+                                            {::contract/actual [:effect-1 :wrong]
+                                             ::contract/path   [:effect-1 :effect]})}]]
         (script/test continuation script)))
     (t/testing "coeffect"
       (let [effn         (fn [x]
@@ -87,7 +87,7 @@
             script       [{:args [:ok]}
                           {:effect   [:effect-1 1]
                            :coeffect :wrong}
-                          {:thrown (ex-info "The value is mismatched by a predicate"
-                                            {:actual :wrong
-                                             :path   [:effect-1 :coeffect]})}]]
+                          {:thrown (ex-info "The value is mismatched by a matcher"
+                                            {::contract/actual :wrong
+                                             ::contract/path   [:effect-1 :coeffect]})}]]
         (script/test continuation script)))))
