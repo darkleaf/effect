@@ -74,26 +74,6 @@
                   :message  "Unexpected return. An effect is expected."}
                  (script/test* continuation script)))))))
 
-(t/deftest tag
-  (let [ef           (fn []
-                       (with-effects
-                         (! (effect [:wrong]))
-                         (! (effect [:eff-2]))))
-        continuation (e/continuation ef)
-        script       [{:args []}
-                      {:tag      10
-                       :effect   [:eff-1]
-                       :coeffect nil}
-                      {:tag          20
-                       :final-effect [:eff-2]}]]
-    (t/is (= {:type     :fail
-              :expected [:eff-1]
-              :actual   [:wrong]
-              :diffs    [[[:wrong]
-                          [[:eff-1] [:wrong] nil]]],
-              :message  "10 / Wrong effect"}
-             (script/test* continuation script)))))
-
 (t/deftest trivial-script
   (let [ef           (fn [x]
                        (with-effects

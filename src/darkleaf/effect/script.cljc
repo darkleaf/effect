@@ -20,11 +20,6 @@
         (catch #?(:clj RuntimeException, :cljs js/Error) ex
           [ex nil])))))
 
-(defn- add-message-tag [message tag]
-  (->> [tag message]
-       (remove nil?)
-       (str/join " / ")))
-
 (defn- test-first-item [{:keys [report continuation]} {:keys [args]}]
   (let [[effect continuation] (continuation args)]
     {:report        report
@@ -38,7 +33,7 @@
      :continuation  continuation}))
 
 (defn- test-middle-item [{:keys [report actual-effect continuation] :as ctx}
-                         {:keys [effect coeffect tag] :as item}]
+                         {:keys [effect coeffect] :as item}]
   (i/<<-
    (if (not= :pass (:type report))
      {:report report})
@@ -47,25 +42,25 @@
      {:report {:type     (if (i/throwable? actual-effect) :error :fail)
                :expected effect
                :actual   actual-effect
-               :message  (add-message-tag "Unexpected return. An effect is expected." tag)}})
+               :message  "Unexpected return. An effect is expected."}})
 
    (if (contains? item :effect)
      (if-some [report (matcher-report effect actual-effect)]
        {:report (assoc report
                        :type :fail
-                       :message (add-message-tag "Wrong effect" tag))}
+                       :message "Wrong effect")}
        (next-step ctx coeffect)))
 
    {:report {:type     :fail
              :expected '(contains? script-item :effect)
              :actual   item
-             :message  (add-message-tag "Wrong script item" tag)}}))
+             :message  "Wrong script item"}}))
 
 (defn- test-middle-items [ctx items]
   (reduce test-middle-item ctx items))
 
 (defn- test-last-item [{:keys [report actual-effect continuation]}
-                       {:keys [return final-effect thrown tag] :as item}]
+                       {:keys [return final-effect thrown] :as item}]
   (i/<<-
    (if (not= :pass (:type report))
      {:report report})
@@ -74,27 +69,27 @@
      (if-some [report (matcher-report final-effect actual-effect)]
        {:report (assoc report
                        :type (if (i/throwable? actual-effect) :error :fail)
-                       :message (add-message-tag "Wrong final effect" tag))}
+                       :message "Wrong final effect")}
        {:report report}))
 
    (if (contains? item :thrown)
      (if-some [report (matcher-report thrown actual-effect)]
        {:report (assoc report
                        :type :fail
-                       :message (add-message-tag "Wrong exception" tag))}
+                       :message "Wrong exception")}
        {:report report}))
 
    (if (some? continuation)
      {:report {:type     :fail
                :expected nil
                :actual   actual-effect
-               :message  (add-message-tag "Extra effect" tag)}})
+               :message  "Extra effect"}})
 
    (if (contains? item :return)
      (if-some [report (matcher-report return actual-effect)]
        {:report (assoc report
                        :type :fail
-                       :message (add-message-tag "Wrong return" tag))}
+                       :message "Wrong return")}
        {:report report}))
 
    {:report {:type     :fail
@@ -102,7 +97,7 @@
                             (contains? script-item :final-effect)
                             (contains? script-item :thrown))
              :actual   item
-             :message  (add-message-tag "Wrong script item" tag)}}))
+             :message  "Wrong script item"}}))
 
 (defn test* [continuation script]
   {:pre [(<= 2 (count script))]}
