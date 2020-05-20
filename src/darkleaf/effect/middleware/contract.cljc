@@ -11,20 +11,20 @@
     (if-let [report (matcher-report matcher x)]
       (throw (ex-info "The value is mismatched by a matcher" (assoc report ::path path))))))
 
-(defn- wrap-contract* [continuation contract coeffect-path]
+(defn- wrap-contract* [continuation fn-name contract coeffect-path]
   (fn [coeffect]
     (check! coeffect contract coeffect-path)
     (let [[effect continuation] (continuation coeffect)]
       (if (nil? continuation)
-        (do (check! effect contract [:return])
+        (do (check! effect contract [fn-name :return])
             [effect nil])
         (let [get-tag (get contract :tag first)
               tag     (get-tag effect)]
           (check! effect contract [tag :effect])
-          [effect (wrap-contract* continuation contract [tag :coeffect])])))))
+          [effect (wrap-contract* continuation fn-name contract [tag :coeffect])])))))
 
-(defn wrap-contract [continuation contract]
-  (wrap-contract* continuation contract [:args]))
+(defn wrap-contract [continuation fn-name contract]
+  (wrap-contract* continuation fn-name contract [fn-name :args]))
 
 (extend-protocol Matcher
   #?(:clj clojure.lang.Fn, :cljs function)

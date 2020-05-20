@@ -6,8 +6,8 @@
    [clojure.test :as t]))
 
 (t/deftest usage
-  (let [contract {:args     (fn [[x]] (= :ok x))
-                  :return   (fn [ret] (= :ok ret))
+  (let [contract {'my/effn  {:args   (fn [[x]] (= :ok x))
+                             :return (fn [ret] (= :ok ret))}
                   ;;:tag    first
                   :effect-1 {:effect   (fn [[_ x]] (int? x))
                              :coeffect (fn [x] (= x :ok))}
@@ -21,7 +21,7 @@
                              :ok))
             continuation (-> effn
                              (e/continuation)
-                             (contract/wrap-contract contract))
+                             (contract/wrap-contract 'my/effn contract))
             script       [{:args [:ok]}
                           {:effect   [:effect-1 1]
                            :coeffect :ok}
@@ -37,11 +37,11 @@
                              :ok))
             continuation (-> effn
                              (e/continuation)
-                             (contract/wrap-contract contract))
+                             (contract/wrap-contract 'my/effn contract))
             script       [{:args [:wrong]}
                           {:thrown (ex-info "The value is mismatched by a matcher"
                                             {::contract/actual [:wrong]
-                                             ::contract/path   [:args]})}]]
+                                             ::contract/path   ['my/effn :args]})}]]
         (script/test continuation script)))
     (t/testing "return"
       (let [effn         (fn [x]
@@ -51,7 +51,7 @@
                              :not-ok))
             continuation (-> effn
                              (e/continuation)
-                             (contract/wrap-contract contract))
+                             (contract/wrap-contract 'my/effn contract))
             script       [{:args [:ok]}
                           {:effect   [:effect-1 1]
                            :coeffect :ok}
@@ -59,7 +59,7 @@
                            :coeffect :ok}
                           {:thrown (ex-info "The value is mismatched by a matcher"
                                             {::contract/actual :not-ok
-                                             ::contract/path   [:return]})}]]
+                                             ::contract/path   ['my/effn :return]})}]]
         (script/test continuation script)))
     (t/testing "effect"
       (let [effn         (fn [x]
@@ -69,7 +69,7 @@
                              :ok))
             continuation (-> effn
                              (e/continuation)
-                             (contract/wrap-contract contract))
+                             (contract/wrap-contract 'my/effn contract))
             script       [{:args [:ok]}
                           {:thrown (ex-info "The value is mismatched by a matcher"
                                             {::contract/actual [:effect-1 :wrong]
@@ -83,7 +83,7 @@
                              :ok))
             continuation (-> effn
                              (e/continuation)
-                             (contract/wrap-contract contract))
+                             (contract/wrap-contract 'my/effn contract))
             script       [{:args [:ok]}
                           {:effect   [:effect-1 1]
                            :coeffect :wrong}
