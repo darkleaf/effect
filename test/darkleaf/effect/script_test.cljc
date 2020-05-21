@@ -7,7 +7,7 @@
 (t/deftest script
   (let [ef           (fn [x]
                        (with-effects
-                         (! (effect [:some-eff x]))))
+                         (! (effect :some-eff x))))
         continuation (e/continuation ef)]
     (t/testing "correct"
       (let [script [{:args [:value]}
@@ -96,7 +96,7 @@
 (t/deftest exception
   (let [ef           (fn []
                        (with-effects
-                         (! (effect [:some-eff]))
+                         (! (effect :some-eff))
                          (throw (ex-info "Message" {:foo :bar}))))
         continuation (e/continuation ef)]
     (t/testing "correct"
@@ -141,7 +141,7 @@
 (t/deftest matcher-example
   (let [ef           (fn [x]
                        (with-effects
-                         (! (effect [:some-eff x]))))
+                         (! (effect :some-eff x))))
         continuation (e/continuation ef)
         script       [{:args [#"some-re"]}
                       {:effect   (reify script/Matcher

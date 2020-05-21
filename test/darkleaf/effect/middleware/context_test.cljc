@@ -3,34 +3,36 @@
    [darkleaf.effect.core :as e :refer [with-effects ! effect]]
    [darkleaf.effect.script :as script]
    [darkleaf.effect.middleware.context :as context]
-   #?(:clj  [clojure.core.match :refer [match]]
-      :cljs [cljs.core.match :refer-macros [match]])
    [clojure.test :as t]))
 
 (t/deftest state
   (let [ef (fn [x]
              (with-effects
+               (! (effect :prn "hi"))
                [x
-                (! (effect [:update inc]))
-                (! (effect [:update + 2]))
-                (! (effect [:get]))]))]
+                (! (effect :update inc))
+                (! (effect :update + 2))
+                (! (effect :get))]))]
     (t/testing "intepretator"
-      (let [continuation      (-> ef
-                                  (e/continuation)
-                                  (context/wrap-context))
-            effect-!>coeffect (fn [[context effect]]
-                                (match effect
-                                       [:get]
-                                       [context (:state context)]
-                                       [:update f & args]
-                                       (let [context (apply update context :state f args)]
-                                         [context (:state context)])))
-            f                 (fn [x] (e/perform effect-!>coeffect continuation [{:state 0} [x]]))]
-        (t/is (= [{:state 3} [0 1 3 3]]
+      (let [continuation (-> ef
+                             (e/continuation)
+                             (context/wrap-context))
+            handlers     {:prn    (fn [context msg]
+                                    [context nil])
+                          :get    (fn [context]
+                                    [context context])
+                          :update (fn [context f & args]
+                                    (let [new-context (apply f context args)]
+                                      [new-context new-context]))}
+            initial      0
+            f            (fn [x] (e/perform handlers continuation [initial [x]]))]
+        (t/is (= [3 [0 1 3 3]]
                  (f 0)))))
     (t/testing "script"
       (let [continuation (e/continuation ef)
             script       [{:args [0]}
+                          {:effect   [:prn "hi"]
+                           :coeffect nil}
                           {:effect   [:update inc]
                            :coeffect 1}
                           {:effect   [:update + 2]
@@ -43,12 +45,14 @@
       (let [continuation (-> ef
                              (e/continuation)
                              (context/wrap-context))
-            script       [{:args [{:state 0} [0]]}
-                          {:effect   [{:state 0} [:update inc]]
-                           :coeffect [{:state 1} 1]}
-                          {:effect   [{:state 1} [:update + 2]]
-                           :coeffect [{:state 3} 3]}
-                          {:effect   [{:state 3} [:get]]
-                           :coeffect [{:state 3} 3]}
-                          {:return [{:state 3} [0 1 3 3]]}]]
+            script       [{:args [0 [0]]}
+                          {:effect   [:prn 0 "hi"]
+                           :coeffect [0 nil]}
+                          {:effect   [:update 0 inc]
+                           :coeffect [1 1]}
+                          {:effect   [:update 1 + 2]
+                           :coeffect [3 3]}
+                          {:effect   [:get 3]
+                           :coeffect [3 3]}
+                          {:return [3 [0 1 3 3]]}]]
         (script/test continuation script)))))

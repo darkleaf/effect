@@ -3,24 +3,22 @@
    [darkleaf.effect.core :as e :refer [with-effects ! effect]]
    [darkleaf.effect.script :as script]
    [darkleaf.effect.middleware.reduced :as reduced]
-   #?(:clj  [clojure.core.match :refer [match]]
-      :cljs [cljs.core.match :refer-macros [match]])
    [clojure.test :as t]))
 
 (t/deftest maybe-example
-  (let [ef                (fn [x]
-                            (with-effects
-                              (+ 5 (! (effect [:maybe x])))))
-        effect-!>coeffect (fn [effect]
-                            (match effect
-                                   [:maybe nil] (reduced nil)
-                                   [:maybe val] val))]
+  (let [ef       (fn [x]
+                   (with-effects
+                     (+ 5 (! (effect :maybe x)))))
+        handlers {:maybe (fn [value]
+                           (if (nil? value)
+                             (reduced nil)
+                             value))}]
     (t/testing "interpretator"
       (let [continuation (-> ef
                              (e/continuation)
                              (reduced/wrap-reduced))]
-        (t/is (= 6 (e/perform effect-!>coeffect continuation [1])))
-        (t/is (= nil (e/perform effect-!>coeffect continuation [nil])))))
+        (t/is (= 6 (e/perform handlers continuation [1])))
+        (t/is (= nil (e/perform handlers continuation [nil])))))
     (t/testing "script"
       (let [continuation (e/continuation ef)]
         (t/testing :just

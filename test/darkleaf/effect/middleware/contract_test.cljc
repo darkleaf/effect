@@ -16,8 +16,8 @@
     (t/testing "success"
       (let [effn         (fn [x]
                            (with-effects
-                             (! (effect [:effect-1 1]))
-                             (! (effect [:effect-2 "str"]))
+                             (! (effect :effect-1 1))
+                             (! (effect :effect-2 "str"))
                              :ok))
             continuation (-> effn
                              (e/continuation)
@@ -32,8 +32,8 @@
     (t/testing "args"
       (let [effn         (fn [x]
                            (with-effects
-                             (! (effect [:effect-1 1]))
-                             (! (effect [:effect-2 "str"]))
+                             (! (effect :effect-1 1))
+                             (! (effect :effect-2 "str"))
                              :ok))
             continuation (-> effn
                              (e/continuation)
@@ -46,8 +46,8 @@
     (t/testing "return"
       (let [effn         (fn [x]
                            (with-effects
-                             (! (effect [:effect-1 1]))
-                             (! (effect [:effect-2 "str"]))
+                             (! (effect :effect-1 1))
+                             (! (effect :effect-2 "str"))
                              :not-ok))
             continuation (-> effn
                              (e/continuation)
@@ -64,8 +64,8 @@
     (t/testing "effect"
       (let [effn         (fn [x]
                            (with-effects
-                             (! (effect [:effect-1 :wrong]))
-                             (! (effect [:effect-2 "str"]))
+                             (! (effect :effect-1 :wrong))
+                             (! (effect :effect-2 "str"))
                              :ok))
             continuation (-> effn
                              (e/continuation)
@@ -78,8 +78,8 @@
     (t/testing "coeffect"
       (let [effn         (fn [x]
                            (with-effects
-                             (! (effect [:effect-1 1]))
-                             (! (effect [:effect-2 "str"]))
+                             (! (effect :effect-1 1))
+                             (! (effect :effect-2 "str"))
                              :ok))
             continuation (-> effn
                              (e/continuation)

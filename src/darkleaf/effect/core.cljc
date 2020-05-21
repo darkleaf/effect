@@ -5,8 +5,9 @@
    [darkleaf.effect.internal :as i])
   #?(:cljs (:require-macros [darkleaf.effect.core :refer [with-effects]])))
 
-(defn effect [x]
-  (i/with-kind x :effect))
+(defn effect [tag & args]
+  (-> (cons tag args)
+      (i/with-kind :effect)))
 
 (defn ! [x]
   x)
@@ -50,40 +51,46 @@
           coeffect  ::not-used]
       (cont coeffect))))
 
-(defn- wrap-exception-as-value [f]
-  (fn effect-!>coeffect
-    ([effect]
+(defn- exec-effect
+  ([handlers [tag & args]]
+   (let [handler (get handlers tag)]
+     (if-not (ifn? handler) (throw (ex-info "The effect handler is not a function"
+                                            {:handler handler :tag tag})))
      (try
-       (f effect)
+       (apply handler args)
        (catch #?(:clj Throwable, :cljs js/Error) error
-         error)))
-    ([effect respond raise]
-     (f effect respond respond))))
+         error))))
+  ([handlers [tag & args] respond raise]
+   (let [handler (get handlers tag)]
+     (if-not (ifn? handler)
+       (raise (ex-info "The effect handler is not a function"
+                       {:handler handler :tag tag}))
+       (apply handler (concat args [respond respond]))))))
 
 (defn- perform-impl
-  ([effect-!>coeffect continuation coeffect-or-args]
+  ([handlers continuation coeffect-or-args]
    (loop [[effect continuation] (continuation coeffect-or-args)]
      (if (nil? continuation)
        effect
-       (recur (continuation (effect-!>coeffect effect))))))
-  ([effect-!>coeffect continuation coeffect-or-args respond raise]
+       (recur (continuation (exec-effect handlers effect))))))
+  ([handlers continuation coeffect-or-args respond raise]
    (try
      (let [[effect continuation] (continuation coeffect-or-args)]
        (if (nil? continuation)
          (respond effect)
-         (effect-!>coeffect effect
-                            (fn [coeffect]
-                              (perform-impl effect-!>coeffect continuation coeffect
-                                            respond raise))
-                            raise)))
+         (exec-effect handlers effect
+                      (fn [coeffect]
+                        (perform-impl handlers continuation coeffect
+                                      respond raise))
+                      raise)))
      (catch #?(:clj Throwable, :cljs js/Error) error
        (raise error)))))
 
 (defn perform
-  ([effect-!>coeffect continuation effect-or-args]
-   (perform-impl (wrap-exception-as-value effect-!>coeffect)
+  ([handlers continuation effect-or-args]
+   (perform-impl handlers
                  continuation effect-or-args))
-  ([effect-!>coeffect continuation effect-or-args respond raise]
-   (perform-impl (wrap-exception-as-value effect-!>coeffect)
+  ([handlers continuation effect-or-args respond raise]
+   (perform-impl handlers
                  continuation effect-or-args
                  respond raise)))

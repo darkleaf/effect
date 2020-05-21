@@ -7,15 +7,15 @@
 (defn- wrap-effect [f]
   (fn [& args]
     (with-effects
-      (! (effect [:prn [:args args]]))
+      (! (effect :prn [:args args]))
       (let [result (apply f args)]
-        (! (effect [:prn [:result result]]))
+        (! (effect :prn [:result result]))
         result))))
 
 (defn- call [effn]
-  (let [continuation      (e/continuation effn)
-        effect-!>coeffect (constantly ::not-interesting)]
-    (e/perform effect-!>coeffect continuation [])))
+  (let [continuation (e/continuation effn)
+        handlers     {:prn (fn [msg] nil)}]
+    (e/perform handlers continuation [])))
 
 (t/deftest reduce!
   (let [str*          (wrap-effect str)
