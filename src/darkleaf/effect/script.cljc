@@ -6,9 +6,31 @@
    [clojure.data :as data]
    [darkleaf.effect.internal :as i]))
 
-(defprotocol Matcher
-  :extend-via-metadata true
-  (matcher-report [matcher actual]))
+(defn- match-value [expected actual]
+  (when (not= expected actual)
+    (if (i/throwable? actual)
+      {:type     :error
+       :expected expected
+       :actual   actual}
+      {:type     :fail
+       :expected expected
+       :actual   actual
+       :diffs    [[actual (data/diff expected actual)]]})))
+
+(defn- match-throwable [expected actual]
+  (i/<<-
+   (if-not (i/throwable? actual)
+     {:type     :fail
+      :expected expected
+      :actual   actual})
+   (let [actual-as-data {:type    (type actual)
+                         :message (ex-message actual)
+                         :data    (ex-data actual)}])
+   (if-not (= expected actual-as-data)
+     {:type     :fail
+      :expected expected
+      :actual   actual-as-data
+      :diffs    [[actual-as-data (data/diff expected actual-as-data)]]})))
 
 (defn- with-exceptions [continuation]
   (when (some? continuation)
@@ -39,16 +61,19 @@
      {:report report})
 
    (if (nil? continuation)
-     {:report {:type     (if (i/throwable? actual-effect) :error :fail)
-               :expected effect
-               :actual   actual-effect
-               :message  "Unexpected return. An effect is expected."}})
+     (if (i/throwable? actual-effect)
+       {:report {:type     :error
+                 :expected effect
+                 :actual   actual-effect
+                 :message  "Unexpected exception. An effect is expected."}}
+       {:report {:type     :fail
+                 :expected effect
+                 :actual   actual-effect
+                 :message  "Unexpected return. An effect is expected."}}))
 
    (if (contains? item :effect)
-     (if-some [report (matcher-report effect actual-effect)]
-       {:report (assoc report
-                       :type :fail
-                       :message "Wrong effect")}
+     (if-some [report (match-value effect actual-effect)]
+       {:report (assoc report :message "Wrong effect")}
        (next-step ctx coeffect)))
 
    {:report {:type     :fail
@@ -67,10 +92,8 @@
 
    (if (contains? item :final-effect)
      (if (some? continuation)
-       (if-some [report (matcher-report final-effect actual-effect)]
-         {:report (assoc report
-                         :type (if (i/throwable? actual-effect) :error :fail)
-                         :message "Wrong final effect")}
+       (if-some [report (match-value final-effect actual-effect)]
+         {:report (assoc report :message "Wrong final effect")}
          {:report report})
        {:report {:type     :fail
                  :expected '(some? continuation)
@@ -78,10 +101,8 @@
                  :message  "The function returned a value"}}))
 
    (if (contains? item :thrown)
-     (if-some [report (matcher-report thrown actual-effect)]
-       {:report (assoc report
-                       :type :fail
-                       :message "Wrong exception")}
+     (if-some [report (match-throwable thrown actual-effect)]
+       {:report (assoc report :message "Wrong exception")}
        {:report report}))
 
    (if (some? continuation)
@@ -91,10 +112,8 @@
                :message  "Extra effect"}})
 
    (if (contains? item :return)
-     (if-some [report (matcher-report return actual-effect)]
-       {:report (assoc report
-                       :type :fail
-                       :message "Wrong return")}
+     (if-some [report (match-value return actual-effect)]
+       {:report (assoc report :message "Wrong return")}
        {:report report}))
 
    {:report {:type     :fail
@@ -120,36 +139,3 @@
 (defn test [continuation script]
   (-> (test* continuation script)
       (t/do-report)))
-
-(defn- ex->data [ex]
-  {:type    (type ex)
-   :message (ex-message ex)
-   :data    (ex-data ex)})
-
-(extend-protocol Matcher
-  nil
-  (matcher-report [_ actual]
-    (if-not (nil? actual)
-      {:expected nil
-       :actual   actual}))
-
-  #?(:clj Object :cljs default)
-  (matcher-report [matcher actual]
-    (when (not= matcher actual)
-      {:expected matcher
-       :actual   actual
-       :diffs    (when-not (i/throwable? actual)
-                   [[actual (data/diff matcher actual)]])}))
-
-  #?(:clj Throwable, :cljs js/Error)
-  (matcher-report [matcher actual]
-    (i/<<-
-     (if-not (i/throwable? actual)
-       {:expected matcher
-        :actual   actual})
-     (let [matcher-data (ex->data matcher)
-           actual-data  (ex->data actual)])
-     (if-not (= matcher-data actual-data)
-       {:expected matcher
-        :actual   actual
-        :diffs    [[actual (data/diff matcher-data actual-data)]]}))))

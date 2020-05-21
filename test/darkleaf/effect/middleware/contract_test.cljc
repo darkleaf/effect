@@ -3,7 +3,9 @@
    [darkleaf.effect.middleware.contract :as contract]
    [darkleaf.effect.core :as e :refer [! effect with-effects]]
    [darkleaf.effect.script :as script]
-   [clojure.test :as t]))
+   [clojure.test :as t])
+  (:import
+   #?(:clj [clojure.lang ExceptionInfo])))
 
 (t/deftest usage
   (let [contract {'my/effn  {:args   (fn [x] (= :ok x))
@@ -38,9 +40,10 @@
                              (e/continuation)
                              (contract/wrap-contract contract 'my/effn))
             script       [{:args [:wrong]}
-                          {:thrown (ex-info "The args are rejected by a predicate"
-                                            {:args [:wrong]
-                                             :path ['my/effn :args]})}]]
+                          {:thrown {:type    ExceptionInfo
+                                    :message "The args are rejected by a predicate"
+                                    :data    {:args [:wrong]
+                                              :path ['my/effn :args]}}}]]
         (script/test continuation script)))
     (t/testing "return"
       (let [effn         (fn [x]
@@ -56,9 +59,10 @@
                            :coeffect :ok}
                           {:effect   [:effect-2 "str"]
                            :coeffect :ok}
-                          {:thrown (ex-info "The return value is rejected by a predicate"
-                                            {:return :not-ok
-                                             :path   ['my/effn :return]})}]]
+                          {:thrown {:type    ExceptionInfo
+                                    :message "The return value is rejected by a predicate"
+                                    :data    {:return :not-ok
+                                              :path   ['my/effn :return]}}}]]
         (script/test continuation script)))
     (t/testing "effect"
       (let [effn         (fn [x]
@@ -70,9 +74,10 @@
                              (e/continuation)
                              (contract/wrap-contract contract 'my/effn))
             script       [{:args [:ok]}
-                          {:thrown (ex-info "The effect args are rejected by a predicate"
-                                            {:args [:wrong]
-                                             :path [:effect-1 :effect]})}]]
+                          {:thrown {:type    ExceptionInfo
+                                    :message "The effect args are rejected by a predicate"
+                                    :data    {:args [:wrong]
+                                              :path [:effect-1 :effect]}}}]]
         (script/test continuation script)))
     (t/testing "coeffect"
       (let [effn         (fn [x]
@@ -86,7 +91,8 @@
             script       [{:args [:ok]}
                           {:effect   [:effect-1 1]
                            :coeffect :wrong}
-                          {:thrown (ex-info "The coeffect is rejected by a predicate"
-                                            {:coeffect :wrong
-                                             :path     [:effect-1 :coeffect]})}]]
+                          {:thrown {:type    ExceptionInfo
+                                    :message "The coeffect is rejected by a predicate"
+                                    :data    {:coeffect :wrong
+                                              :path     [:effect-1 :coeffect]}}}]]
         (script/test continuation script)))))

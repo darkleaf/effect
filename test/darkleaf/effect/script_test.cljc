@@ -2,7 +2,9 @@
   (:require
    [darkleaf.effect.core :as e :refer [with-effects ! effect]]
    [darkleaf.effect.script :as script]
-   [clojure.test :as t]))
+   [clojure.test :as t])
+  (:import
+   #?(:clj [clojure.lang ExceptionInfo])))
 
 (t/deftest script
   (let [ef           (fn [x]
@@ -103,7 +105,9 @@
       (let [script [{:args []}
                     {:effect   [:some-eff]
                      :coeffect :some-coeff}
-                    {:thrown (ex-info "Message" {:foo :bar})}]]
+                    {:thrown {:type    ExceptionInfo
+                              :message "Message"
+                              :data    {:foo :bar}}}]]
         (script/test continuation script)))
     (t/testing "unexpected exception"
       (let [script [{:args []}
@@ -111,7 +115,7 @@
                      :coeffect :some-coeff}
                     {:return :ok}]
             report (script/test* continuation script)]
-        (t/is (= :fail (:type report)))))
+        (t/is (= :error (:type report)))))
     (t/testing "wrong exception type"
       (let [script [{:args []}
                     {:effect   [:some-eff]
@@ -137,19 +141,3 @@
             report (script/test* continuation script)]
         (t/is (= :fail (:type report)))
         (t/is (= "Wrong exception" (:message report)))))))
-
-(t/deftest matcher-example
-  (let [ef           (fn [x]
-                       (with-effects
-                         (! (effect :some-eff x))))
-        continuation (e/continuation ef)
-        script       [{:args [#"some-re"]}
-                      {:effect   (reify script/Matcher
-                                   (matcher-report [_ actual]
-                                     (if-not (and (= :some-eff (-> actual first))
-                                                  (= (str #"some-re") (-> actual second str)))
-                                       {:expected [:some-eff #"some-re"]
-                                        :actual   actual})))
-                       :coeffect :other-value}
-                      {:return :other-value}]]
-    (script/test continuation script)))
