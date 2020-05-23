@@ -83,7 +83,7 @@
         (t/is (= {:type     :fail
                   :expected '(some? continuation)
                   :actual   :other-value
-                  :message  "The function returned a value"}
+                  :message  "A value was unexpectedly returned"}
                  (script/test* continuation script)))))))
 
 (t/deftest trivial-script

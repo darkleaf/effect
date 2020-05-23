@@ -95,10 +95,15 @@
        (if-some [report (match-value final-effect actual-effect)]
          {:report (assoc report :message "Wrong final effect")}
          {:report report})
-       {:report {:type     :fail
-                 :expected '(some? continuation)
-                 :actual   actual-effect
-                 :message  "The function returned a value"}}))
+       (if (i/throwable? actual-effect)
+         {:report {:type     :error
+                   :expected '(some? continuation)
+                   :actual   actual-effect
+                   :message  "An exception was unexpectedly thrown"}}
+         {:report {:type     :fail
+                   :expected '(some? continuation)
+                   :actual   actual-effect
+                   :message "A value was unexpectedly returned"}})))
 
    (if (contains? item :thrown)
      (if-some [report (match-throwable thrown actual-effect)]
