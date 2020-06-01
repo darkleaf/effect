@@ -67,7 +67,7 @@
                        {:handler handler :tag tag}))
        (apply handler (concat args [respond respond]))))))
 
-(defn- perform-impl
+(defn perform
   ([handlers continuation coeffect-or-args]
    (loop [[effect continuation] (continuation coeffect-or-args)]
      (if (nil? continuation)
@@ -80,17 +80,8 @@
          (respond effect)
          (exec-effect handlers effect
                       (fn [coeffect]
-                        (perform-impl handlers continuation coeffect
-                                      respond raise))
+                        (perform handlers continuation coeffect
+                                 respond raise))
                       raise)))
      (catch #?(:clj Throwable, :cljs js/Error) error
        (raise error)))))
-
-(defn perform
-  ([handlers continuation effect-or-args]
-   (perform-impl handlers
-                 continuation effect-or-args))
-  ([handlers continuation effect-or-args respond raise]
-   (perform-impl handlers
-                 continuation effect-or-args
-                 respond raise)))
