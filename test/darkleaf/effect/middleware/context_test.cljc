@@ -3,7 +3,9 @@
    [darkleaf.effect.core :as e :refer [with-effects ! effect]]
    [darkleaf.effect.script :as script]
    [darkleaf.effect.middleware.context :as context]
-   [clojure.test :as t]))
+   [clojure.test :as t])
+  (:import
+   #?(:clj [clojure.lang ExceptionInfo])))
 
 (t/deftest state
   (let [ef (fn [x]
@@ -56,3 +58,15 @@
                            :coeffect [3 3]}
                           {:return [3 [0 1 3 3]]}]]
         (script/test continuation script)))))
+
+(t/deftest exceptions
+  (let [ef           (fn []
+                       (with-effects
+                         (! (effect :throw))))
+        handlers     {:throw (fn [state]
+                               (throw (ex-info "Test" {})))}
+        continuation (-> ef
+                         (e/continuation)
+                         (context/wrap-context))
+        f            (fn [] (e/perform handlers continuation [{} []]))]
+    (t/is (thrown? ExceptionInfo (f)))))
