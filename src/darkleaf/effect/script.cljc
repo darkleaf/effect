@@ -19,6 +19,10 @@
 
 (defn- match-throwable [expected actual]
   (i/<<-
+   (if-not (map? expected)
+     {:type     :fail
+      :expected (list 'map? expected)
+      :actual   false})
    (if-not (i/throwable? actual)
      {:type     :fail
       :expected expected

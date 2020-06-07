@@ -117,27 +117,79 @@
             report (script/test* continuation script)]
         (t/is (= :error (:type report)))))
     (t/testing "wrong exception type"
-      (let [script [{:args []}
-                    {:effect   [:some-eff]
-                     :coeffect :some-coeff}
-                    {:thrown #?(:clj  (RuntimeException. "Some msg")
-                                :cljs (js/Error. "Some msg"))}]
-            report (script/test* continuation script)]
-        (t/is (= :fail (:type report)))
-        (t/is (= "Wrong exception" (:message report)))))
+      (let [wrong-ex #?(:clj RuntimeException :cljs js/Error)
+            script   [{:args []}
+                      {:effect   [:some-eff]
+                       :coeffect :some-coeff}
+                      {:thrown {:type    wrong-ex
+                                :message "Some msg"
+                                :data    nil}}]
+            report   (script/test* continuation script)]
+        (t/is (= {:type     :fail
+                  :expected {:type    wrong-ex
+                             :message "Some msg"
+                             :data    nil}
+                  :actual   {:type    ExceptionInfo
+                             :message "Message"
+                             :data    {:foo :bar}}
+                  :diffs    [[{:type    ExceptionInfo
+                               :message "Message"
+                               :data    {:foo :bar}}
+                              [{:type    wrong-ex
+                                :message "Some msg"
+                                :data    nil}
+                               {:type    ExceptionInfo
+                                :message "Message"
+                                :data    {:foo :bar}}
+
+                               nil]]]
+                  :message "Wrong exception"}
+                 report))))
     (t/testing "wrong exception message"
       (let [script [{:args []}
                     {:effect   [:some-eff]
                      :coeffect :some-coeff}
-                    {:thrown (ex-info "Wrong message" {:foo :bar})}]
+                    {:thrown {:type    ExceptionInfo
+                              :message "Wrong message"
+                              :data    {:foo :bar}}}]
             report (script/test* continuation script)]
-        (t/is (= :fail (:type report)))
-        (t/is (= "Wrong exception" (:message report)))))
+        (t/is (=  {:type     :fail
+                   :expected {:type    ExceptionInfo
+                              :message "Wrong message"
+                              :data    {:foo :bar}}
+                   :actual   {:type    ExceptionInfo
+                              :message "Message"
+                              :data    {:foo :bar}}
+                   :diffs    [[{:type    ExceptionInfo
+                                :message "Message"
+                                :data    {:foo :bar}}
+                               [{:message "Wrong message"}
+                                {:message "Message"}
+                                {:type ExceptionInfo
+                                 :data {:foo :bar}}]]]
+                   :message  "Wrong exception"}
+                  report))))
     (t/testing "wrong exception data"
       (let [script [{:args []}
                     {:effect   [:some-eff]
                      :coeffect :some-coeff}
-                    {:thrown (ex-info "Message" {:foo :wrong})}]
+                    {:thrown {:type    ExceptionInfo
+                              :message "Message"
+                              :data    {:foo :wrong}}}]
             report (script/test* continuation script)]
-        (t/is (= :fail (:type report)))
-        (t/is (= "Wrong exception" (:message report)))))))
+        (t/is (= {:type     :fail
+                  :expected {:type    ExceptionInfo
+                             :message "Message"
+                             :data    {:foo :wrong}}
+                  :actual   {:type    ExceptionInfo
+                             :message "Message"
+                             :data    {:foo :bar}}
+                  :diffs    [[{:type    ExceptionInfo
+                               :message "Message"
+                               :data    {:foo :bar}}
+                              [{:data {:foo :wrong}}
+                               {:data {:foo :bar}}
+                               {:type    ExceptionInfo
+                                :message "Message"}]]]
+                  :message  "Wrong exception"}
+                 report))))))
