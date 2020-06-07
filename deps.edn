@@ -1,1 +1,8 @@
-{:deps {cloroutine {:mvn/version "10"}}}
+{:deps    {cloroutine {:mvn/version "10"}}
+ :aliases {:dev       {:extra-paths ["test"]}
+           :clj-test  {:extra-deps {com.cognitect/test-runner
+                                    {:git/url "https://github.com/cognitect-labs/test-runner.git"
+                                     :sha     "f7ef16dc3b8332b0d77bc0274578ad5270fbfedd"}}
+                       :main-opts  ["-m" "cognitect.test-runner"]}
+           :cljs-test {:extra-deps {olical/cljs-test-runner {:mvn/version "3.7.0"}}
+                       :main-opts  ["-m" "cljs-test-runner.main"]}}}

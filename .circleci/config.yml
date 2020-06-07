@@ -2,7 +2,7 @@ version: 2
 jobs:
   build:
     docker:
-      - image: circleci/clojure:lein-2.9.1-node
+      - image: circleci/clojure:openjdk-14-tools-deps-1.10.1.502-buster-node
 
     working_directory: ~/repo
 
@@ -16,16 +16,15 @@ jobs:
 
       - restore_cache:
           keys:
-            - v1-dependencies-{{ checksum "project.clj" }}
-            - v1-dependencies-
+            - v1-dependencies-{{ checksum "project.clj" }}-{{ checksum "deps.edn" }}
 
-      - run: lein deps
+      - run: clojure -R:dev:clj-test:cljs-test -e "(prn :deps)"
 
       - save_cache:
           paths:
             - ~/.m2
-          key: v1-dependencies-{{ checksum "project.clj" }}
+            - ~/.gitlibs
+          key: v1-dependencies-{{ checksum "project.clj" }}-{{ checksum "deps.edn" }}
 
-      - run: lein test
-      - run: lein doo node node-none once
-      - run: lein doo node node-advanced once
+      - run: clojure -A:dev:clj-test
+      - run: clojure -A:dev:cljs-test
