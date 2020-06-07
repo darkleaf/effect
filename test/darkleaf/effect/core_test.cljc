@@ -209,7 +209,7 @@
        (f #(check :respond %)
           #(check :raise %))))))
 
-(t/deftest exceptions-in-handler
+(t/deftest exceptions-in-handler-async
   (let [ef           (fn []
                        (with-effects
                          (! (effect :prn "Throw!"))
@@ -255,5 +255,6 @@
                                (! (effect :third))))
         continuation       (e/continuation ef)
         [eff continuation] (continuation [])]
-    (t/is (= (first (continuation "first coeffect"))
+    (t/is (= [:second]
+             (first (continuation "first coeffect"))
              (first (continuation "first coeffect"))))))
