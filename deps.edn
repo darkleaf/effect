@@ -5,4 +5,6 @@
                                      :sha     "f7ef16dc3b8332b0d77bc0274578ad5270fbfedd"}}
                        :main-opts  ["-m" "cognitect.test-runner"]}
            :cljs-test {:extra-deps {olical/cljs-test-runner {:mvn/version "3.7.0"}}
-                       :main-opts  ["-m" "cljs-test-runner.main"]}}}
+                       :main-opts  ["-m" "cljs-test-runner.main"]}
+           :readme    {:extra-deps {seancorfield/readme {:mvn/version "1.0.13"}}
+                       :main-opts  ["-m" "seancorfield.readme"]}}}

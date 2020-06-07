@@ -18,7 +18,7 @@ jobs:
           keys:
             - v1-dependencies-{{ checksum "project.clj" }}-{{ checksum "deps.edn" }}
 
-      - run: clojure -R:dev:clj-test:cljs-test -e "(prn :deps)"
+      - run: clojure -R:dev:clj-test:cljs-test:readme -e "(prn :deps)"
 
       - save_cache:
           paths:
@@ -28,3 +28,4 @@ jobs:
 
       - run: clojure -A:dev:clj-test
       - run: clojure -A:dev:cljs-test
+      - run: clojure -A:readme

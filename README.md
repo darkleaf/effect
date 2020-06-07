@@ -33,6 +33,7 @@
 
 Однако теория разбивается о реальность.
 
+
 Предположим, у нас есть функция, описывающая логин пользователя:
 
 ```clojure
@@ -98,7 +99,7 @@ build_login_2 :: IO SessionData ->
    (fn [session]
      ;;...
      [[:get-user-by-login login]
-      (fn [user]
+      (fn [{:as user :keys [id password-digest]}]
         ;; ...
         [[:check-password password password-digest]
          (fn [correct-password?]
