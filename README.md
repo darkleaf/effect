@@ -3,6 +3,18 @@
 
 Алгебраические эффекты для Clojure(Script).
 
+# Api
+
+* [core test](test/darkleaf/effect/core_test.cljc).
+* [script test](test/darkleaf/effect/script_test.cljc).
+* [core analogs test](test/darkleaf/effect/core_analogs_test.cljc).
+* middleware
+  * [composition test](test/darkleaf/effect/middleware/composition_test.cljc).
+  * [context test](test/darkleaf/effect/middleware/context_test.cljc).
+  * [contract test](test/darkleaf/effect/middleware/contract_test.cljc).
+  * [log test](test/darkleaf/effect/middleware/log_test.cljc).
+  * [reduced test](test/darkleaf/effect/middleware/reduced_test.cljc).
+
 # Rationale
 
 Я здумывался о том, как отделить логику приложения от деталей реализации.
@@ -127,6 +139,8 @@ build_login_2 :: IO SessionData ->
 ```
 
 Макрос `with-effects` делает всю работу. В местах, помеченных `!` происходит разрыв фукнции.
+Фукнция `effect` показывает, что мы прерываемся на вызов эффекта, а не другой фукнции.
+Можно провести некоторую аналогию между `with-effects/!` и `async/await` или `core.async`.
 
 ```clojure
 (defn login-5 [{:as form :keys [login password]}]
@@ -150,7 +164,7 @@ build_login_2 :: IO SessionData ->
 => [[:get-session] true]
 ```
 
-Давайте определим обработчики эффектов в виде заглушек
+Давайте определим обработчики эффектов и запустим нашу фукнцию с помощью `e/perform`.
 
 ```clojure
 (let [handlers {:get-session       (fn [] {})
@@ -163,7 +177,9 @@ build_login_2 :: IO SessionData ->
 => {:type :processed}
 ```
 
-Двайте напишем тест на нашу функцию с использованием сценария эффектов:
+## Script testing
+
+Такой подход плохо подходит для тестирования, поэтому давайте протестируем функцию с использованием сценария:
 
 ```clojure
 (require '[clojure.test :as t])
@@ -186,11 +202,26 @@ build_login_2 :: IO SessionData ->
     (script/test cont script)))
 ```
 
+Сценарий проверят какие и в каком порядке были запрошены эффекты
+и какие коэффекты нужно передать в обратно программу.
+Expected effect сравнивается с actual effect по значению с помощью `clojure.core/=`.
+Также скрипт может проверять брошенные исключения с помощью `:thrown`
+или обрывать проверку на заданном эффекте с помощью `:final-effect`.
 
 
+По аналогии с async/await поддержка эффектов делит функции на "цвета".
+Подробности вы найдете в статье [What Color is Your Function?](https://journal.stuffwithstuff.com/2015/02/01/what-color-is-your-function/).
+Т.е. обычная функция не может вызвать фукнцию с эффектами.
+Например, вы не можете передавать функции с эффектами в `clojure.core/map`.
+Есть надежда на то, что для JVM эту проблему решит [Project Loom](https://cr.openjdk.java.net/~rpressler/loom/Loom-Proposal.html).
+Но пока вы можете воспользоваться фукнциями и макросами из `darkleaf.effect.core-analogs`.
 
+## Middlewares
 
+## Async handlers
 
+## Internals
 
+https://github.com/leonoel/cloroutine
 
-про ассинхронный ввод вывод рассказать в `perform`
+core.async/go
