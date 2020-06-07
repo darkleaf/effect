@@ -17,6 +17,14 @@
                      :coeffect :other-value}
                     {:return :other-value}]]
         (script/test continuation script)))
+    (t/testing "exception as coeffect"
+      (let [script [{:args [:value]}
+                    {:effect   [:some-eff :value]
+                     :coeffect (ex-info "Fail" {})}
+                    {:thrown {:type    ExceptionInfo
+                              :message "Fail"
+                              :data    {}}}]]
+        (script/test continuation script)))
     (t/testing "final-effect"
       (let [script [{:args [:value]}
                     {:final-effect [:some-eff :value]}]]
