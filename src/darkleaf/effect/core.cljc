@@ -1,5 +1,4 @@
 (ns darkleaf.effect.core
-  (:refer-clojure :exclude [test mapv reduce])
   (:require
    [cloroutine.core :refer [cr]]
    [darkleaf.effect.internal :as i])
