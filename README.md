@@ -37,14 +37,14 @@
 От куда мы будем получать все необходимые данные?
 
 Эта идея перекликается с
-* functional core imperative shell
+* functional core, imperative shell
 * clean architecture
 * ports and adapters
 
 Однако теория разбивается о реальность.
 
 
-Предположим, у нас есть функция, описывающая логин пользователя:
+Предположим, у нас есть функция, описывающая процесс входа пользователя в систему:
 
 ```clojure
 (declare ^:dynamic *get-session*
@@ -203,7 +203,7 @@ build_login_2 :: IO SessionData ->
 ```
 
 Сценарий проверят какие и в каком порядке были запрошены эффекты
-и какие коэффекты нужно передать в обратно программу.
+и какие коэффекты нужно передать обратно в программу.
 Expected effect сравнивается с actual effect по значению с помощью `clojure.core/=`.
 Также скрипт может проверять брошенные исключения с помощью `:thrown`
 или обрывать проверку на заданном эффекте с помощью `:final-effect`
@@ -244,7 +244,7 @@ Expected effect сравнивается с actual effect по значению 
 
 `(! (nested-ef x))` - вызов функции с эффектами.
 Если `nested-ef` перестанет использовать макрос `with-effects`,
-то `!` просто вернет вычисленное значение.
+то `!` просто вернет вычисленное значение. `(! (str "nested: " x))` как раз демонстрирует это поведение.
 
 Вы можете использовать `!` с эффектами, функциями с эффектами, значениями и обычными функциями.
 
@@ -255,7 +255,7 @@ Expected effect сравнивается с actual effect по значению 
 Т.е. обычная функция не может вызвать функцию с эффектами.
 Например, вы не можете передавать функции с эффектами в `clojure.core/map`.
 Есть надежда на то, что для JVM эту проблему решит [Project Loom](https://cr.openjdk.java.net/~rpressler/loom/Loom-Proposal.html).
-Но пока вы можете воспользоваться функциями и макросами из
+А пока вы можете воспользоваться функциями и макросами из
 [`darkleaf.effect.core-analogs`](test/darkleaf/effect/core_analogs_test.cljc).
 
 ## Middlewares
@@ -371,13 +371,14 @@ Middleware можно объединять. Подробнее в [composition t
     ([handlers continuation coeffect-or-args respond raise])))
 ```
 
-Асинхронный обработчик так же принимать 2 дополнительных аргумента: `respond` и `raise`
+Асинхронный обработчик так же должнен принимать 2 дополнительных аргумента для ассинхронного случая
 
 ```clojure
 (comment
-  (defn my-effect-handler
-    ([arg-1 arg-2])
-    ([arg-1 arg-2 respond raise])))
+  (defn my-identity-handler
+    ([x] x)
+    ([x respond raise]
+      (js/process.nextTick respond x))))
 ```
 
 ## Internals
