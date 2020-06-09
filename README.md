@@ -206,22 +206,180 @@ build_login_2 :: IO SessionData ->
 и какие коэффекты нужно передать в обратно программу.
 Expected effect сравнивается с actual effect по значению с помощью `clojure.core/=`.
 Также скрипт может проверять брошенные исключения с помощью `:thrown`
-или обрывать проверку на заданном эффекте с помощью `:final-effect`.
+или обрывать проверку на заданном эффекте с помощью `:final-effect`
 
+```clojure
+{:thrown {:type   RuntimeException
+          :mssage "Some message"
+          :data   nil}}
+{:final-effect [:early-return :some-value]}
+```
+
+## Stack
+
+Функция с эффектами может вызывать другую функцию с эффектами или без
+
+```clojure
+(t/deftest stack-use-case
+  (let [nested-ef    (fn [x]
+                       (with-effects
+                         (! (effect :prn :nested "start"))
+                         (! (effect :prn :nested x))
+                         (! (str "nested: " x))))
+        ef           (fn [x]
+                       (with-effects
+                         (! (effect :prn :main "start"))
+                         (! (nested-ef x))))
+        continuation (e/continuation ef)
+        script       [{:args ["arg"]}
+                      {:effect   [:prn :main "start"]
+                       :coeffect nil}
+                      {:effect   [:prn :nested "start"]
+                       :coeffect nil}
+                      {:effect   [:prn :nested "arg"]
+                       :coeffect nil}
+                      {:return "nested: arg"}]]
+    (script/test continuation script)))
+```
+
+`(! (nested-ef x))` - вызов функции с эффектами.
+Если `nested-ef` перестанет использовать макрос `with-effects`,
+то `!` просто вернет вычисленное значение.
+
+Вы можете использовать `!` с эффектами, функциями с эффектами, значениями и обычными фукнциями.
+
+## Core analogs
 
 По аналогии с async/await поддержка эффектов делит функции на "цвета".
 Подробности вы найдете в статье [What Color is Your Function?](https://journal.stuffwithstuff.com/2015/02/01/what-color-is-your-function/).
 Т.е. обычная функция не может вызвать фукнцию с эффектами.
 Например, вы не можете передавать функции с эффектами в `clojure.core/map`.
 Есть надежда на то, что для JVM эту проблему решит [Project Loom](https://cr.openjdk.java.net/~rpressler/loom/Loom-Proposal.html).
-Но пока вы можете воспользоваться фукнциями и макросами из `darkleaf.effect.core-analogs`.
+Но пока вы можете воспользоваться фукнциями и макросами из
+[`darkleaf.effect.core-analogs`](test/darkleaf/effect/core_analogs_test.cljc).
 
 ## Middlewares
 
+Продолжение возвращает пару из эффекта и следующего продолжения.
+Если вычисление завершено, то возвращается пара из результата и `nil`.
+Таким образом, мы можем управлять вычислением.
+
+Рассмотрим пустую middlware:
+
+```clojure
+(defn wrap-blank [continuation]
+  (when (some? continuation)
+    (fn [coeffect]
+      (let [[effect continuation] (continuation coeffect)]
+        [effect (wrap-blank continuation)]))))
+
+(let [continuation (-> login-5
+                       (e/continuation)
+                       (wrap-blank))]
+    #_"some code")
+```
+
+С помощью [context middleware](test/darkleaf/effect/middleware/context_test.cljc)
+вы можете передавать контест между обработчиками эффектов.
+Это напоминает монады State, Reader и Writer.
+
+```clojure
+(require '[darkleaf.effect.middleware.context :as context])
+```
+
+```clojure
+(let [ef           (fn [arg]
+                     (with-effects
+                       (! (effect :ctx/update inc))
+                       (! (effect :ctx/update + 2))
+                       arg))
+      continuation (-> ef
+                       (e/continuation)
+                       (context/wrap-context))
+      handlers     {:ctx/update (fn [context f & args]
+                                  (let [new-context (apply f context args)]
+                                    [new-context new-context]))}]
+    (e/perform handlers continuation [0 [:some-arg]]))
+=> [3 :some-arg]
+```
+
+После применения `context/wrap-context` обработчики принимают контекст первым дополнительным аргументом
+и должны возвращать пару из контекта и коэффекта.
+
+С помощью [reduced middleware](test/darkleaf/effect/middleware/reduced_test.cljc)
+вы можете досрочно прервать вычисление. Это напоминает монады Maybe или Either.
+
+```clojure
+(require '[darkleaf.effect.middleware.reduced :as reduced])
+```
+
+```clojure
+(let [ef           (fn [x]
+                     (with-effects
+                       (+ 5 (! (effect :maybe x)))))
+      handlers     {:maybe (fn [value]
+                             (if (nil? value)
+                               (reduced nil)
+                               value))}
+      continuation (-> ef
+                       (e/continuation)
+                       (reduced/wrap-reduced))]
+  [(e/perform handlers continuation [1])
+   (e/perform handlers continuation [nil])])
+=> [6 nil]
+```
+
+Если обработчик возвращает `reduced` значение, то вычисление прерывается и это значение
+используется для возврата из функции.
+
+С помощью [contract middleware](test/darkleaf/effect/middleware/contract_test.cljc)
+вы можете проверять контракты фукнций и их эффектов/коэффектов.
+
+```clojure
+(require '[darkleaf.effect.middleware.contract :as contract])
+```
+
+```clojure
+(let [effn         (fn [x]
+                     (with-effects
+                       (+ x (! (effect :my/effect 1)))))
+      contract     {'my/effn   {:args   (fn [x] (int? x))
+                                :return int?}
+                    :my/effect {:effect   (fn [x] (int? x))
+                                :coeffect int?}}
+      continuation (-> effn
+                       (e/continuation)
+                       (contract/wrap-contract contract 'my/effn))])
+```
+
+С помощью [log middleware](test/darkleaf/effect/middleware/log_test.cljc)
+вы можете вести журнал эффектов, что позволяет замораживать и продолжать вычисление.
+Журнал может быть сериализован, передан на другую машину и применен для продолжения вычисления.
+Вы можете начать вычисление на сервере и продолжить его в браузере и наоброт.
+
+Middlware можно объединять. Подробнее в [composition test](test/darkleaf/effect/middleware/composition_test.cljc).
+
 ## Async handlers
+
+Вы можете писать код с эффектами, синхронно его тестировать, но запускать с ассинхронными обработчиками.
+Для этого случая функция `e/perform` принимает доплнительные агрументы `respond` и `raise`.
+
+```clojure
+(comment
+  (defn perform
+    ([handlers continuation coeffect-or-args])
+    ([handlers continuation coeffect-or-args respond raise])))
+```
+
+Ассинхронный обработчик так же принимать 2 дополнительных агрумента: `respond` и `raise`
+
+```clojure
+(comment
+  (defn my-effect-handler
+    ([arg-1 arg-2])
+    ([arg-1 arg-2 respond raise])))
+```
 
 ## Internals
 
 https://github.com/leonoel/cloroutine
-
-core.async/go
