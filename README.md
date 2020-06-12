@@ -37,12 +37,10 @@
 От куда мы будем получать все необходимые данные?
 
 Эта идея перекликается с
-* functional core, imperative shell
-* clean architecture
-* ports and adapters
-
-Однако теория разбивается о реальность.
-
+* Functional core, imperative shell
+* [Clean architecture](https://blog.cleancoder.com/uncle-bob/2012/08/13/the-clean-architecture.html)
+* [Hexagonal architecture](https://en.wikipedia.org/wiki/Hexagonal_architecture_(software))
+* [Ports and adapters](http://www.dossier-andreas.net/software_architecture/ports_and_adapters.html)
 
 Предположим, у нас есть функция, описывающая процесс входа пользователя в систему:
 
@@ -99,9 +97,15 @@ build_login_2 :: IO SessionData ->
 Подробнее об этой проблеме вы можете прочитать в статье
 [Dependency rejection](https://blog.ploeh.dk/2017/02/02/dependency-rejection/).
 
-Как сделать так, чтобы императивная оболочка вызывала чистое ядро?
+Стоит также рассмотреть зависимости между функциями. Есть 2 типа зависимостей:
+compile time и run time. Суть внедрения зависимостей в инверсии compile time зависимостей,
+т.е.  в compile time оболочка зависит (реализует неявный интерфейс) от ядра,
+но в run time ядро зависит (вызывает) от оболочки.
+
+А как сделать так, чтобы императивная оболочка вызывала чистое ядро?
 И не разбивать единое вычисление на множество отдельных не связанных между собой чистых шагов?
-Что, если не принимать зависимости, а возвращать описание побочного эффекта и продолжение функции?
+Что, если не принимать зависимости, а возвращать описание побочного эффекта и
+продолжение функции, принимающее результат исполнения этого эффекта?
 
 ```clojure
 (defn login-4 [{:as form :keys [login password]}]
@@ -139,7 +143,7 @@ build_login_2 :: IO SessionData ->
 ```
 
 Макрос `with-effects` делает всю работу. В местах, помеченных `!` происходит разрыв функции.
-Функция `effect` показывает, что мы прерываемся на вызов эффекта, а не другой функции.
+Функция `effect` показывает, что мы прерываемся на вызов эффекта.
 Можно провести некоторую аналогию между `with-effects/!` и `async/await` или `core.async`.
 
 ```clojure
@@ -156,6 +160,8 @@ build_login_2 :: IO SessionData ->
               (! (effect :update-session assoc :user-id id))
               {:type :processed})))))))
 ```
+
+`e/continuation` преобразует функцию с эффектами в продолжение:
 
 ```clojure
 (let [cont            (e/continuation login-5)
@@ -179,7 +185,7 @@ build_login_2 :: IO SessionData ->
 
 ## Script testing
 
-Такой подход плохо подходит для тестирования, поэтому давайте протестируем функцию с использованием сценария:
+Такой подход плохо подходит для тестирования, поэтому давайте протестируем функцию используя сценарий:
 
 ```clojure
 (require '[clojure.test :as t])
@@ -203,7 +209,7 @@ build_login_2 :: IO SessionData ->
 ```
 
 Сценарий проверят какие и в каком порядке были запрошены эффекты
-и какие коэффекты нужно передать обратно в программу.
+и какие коэффекты нужно передать обратно.
 Expected effect сравнивается с actual effect по значению с помощью `clojure.core/=`.
 Также скрипт может проверять брошенные исключения с помощью `:thrown`
 или обрывать проверку на заданном эффекте с помощью `:final-effect`
@@ -217,7 +223,7 @@ Expected effect сравнивается с actual effect по значению 
 
 ## Stack
 
-Функция с эффектами может вызывать другую функцию с эффектами или без
+Функция с эффектами может вызывать другие функции с эффектами или без
 
 ```clojure
 (t/deftest stack-use-case
@@ -250,13 +256,39 @@ Expected effect сравнивается с actual effect по значению 
 
 ## Core analogs
 
-По аналогии с async/await поддержка эффектов делит функции на "цвета".
-Подробности вы найдете в статье [What Color is Your Function?](https://journal.stuffwithstuff.com/2015/02/01/what-color-is-your-function/).
-Т.е. обычная функция не может вызвать функцию с эффектами.
+По аналогии с async/await, обычная функция не может вызвать функцию с эффектами.
 Например, вы не можете передавать функции с эффектами в `clojure.core/map`.
+Подробности вы найдете в статье [What Color is Your Function?](https://journal.stuffwithstuff.com/2015/02/01/what-color-is-your-function/).
+
 Есть надежда на то, что для JVM эту проблему решит [Project Loom](https://cr.openjdk.java.net/~rpressler/loom/Loom-Proposal.html).
 А пока вы можете воспользоваться функциями и макросами из
 [`darkleaf.effect.core-analogs`](test/darkleaf/effect/core_analogs_test.cljc).
+
+## Async handlers
+
+Вы можете писать код с эффектами, синхронно его тестировать, но запускать с асинхронными обработчиками.
+Для этого случая функция `e/perform` принимает дополнительные аргументы `respond` и `raise`.
+
+```clojure
+(comment
+  (defn perform
+    ([handlers continuation coeffect-or-args])
+    ([handlers continuation coeffect-or-args respond raise])))
+```
+
+Асинхронный обработчик так же должнен принимать 2 дополнительных аргумента для ассинхронного случая
+
+```clojure
+(comment
+  (defn my-identity-handler
+    ([x] x)
+    ([x respond raise]
+      (js/process.nextTick respond x))))
+```
+
+## Exceptions
+
+## Higer-order effects ?
 
 ## Middlewares
 
@@ -347,9 +379,16 @@ Expected effect сравнивается с actual effect по значению 
                                 :return int?}
                     :my/effect {:effect   (fn [x] (int? x))
                                 :coeffect int?}}
+      handlers     {:my/effect (fn [x]
+                                 "wrong int")}
       continuation (-> effn
                        (e/continuation)
-                       (contract/wrap-contract contract 'my/effn))])
+                       (contract/wrap-contract contract 'my/effn))]
+  (try
+    (e/perform handlers continuation [1])
+    (catch Throwable e
+      (ex-data e))))
+=> {:coeffect "wrong int", :path [:my/effect :coeffect]}
 ```
 
 С помощью [log middleware](test/darkleaf/effect/middleware/log_test.cljc)
@@ -357,29 +396,65 @@ Expected effect сравнивается с actual effect по значению 
 Журнал может быть сериализован, передан на другую машину и применен для продолжения вычисления.
 Вы можете начать вычисление на сервере и продолжить его в браузере и наоборот.
 
-Middleware можно объединять. Подробнее в [composition test](test/darkleaf/effect/middleware/composition_test.cljc).
-
-## Async handlers
-
-Вы можете писать код с эффектами, синхронно его тестировать, но запускать с асинхронными обработчиками.
-Для этого случая функция `e/perform` принимает дополнительные аргументы `respond` и `raise`.
-
 ```clojure
-(comment
-  (defn perform
-    ([handlers continuation coeffect-or-args])
-    ([handlers continuation coeffect-or-args respond raise])))
+(require '[darkleaf.effect.middleware.log :as log])
 ```
 
-Асинхронный обработчик так же должнен принимать 2 дополнительных аргумента для ассинхронного случая
+Чтобы функция прервала свое выполнения, обработчик должен вернуть особый коэффект -
+`::log/suspend`.
 
 ```clojure
-(comment
-  (defn my-identity-handler
-    ([x] x)
-    ([x respond raise]
-      (js/process.nextTick respond x))))
+(def log-handlers {:my/suspend (fn [] ::log/suspend)})
+
+(defn log-ef [x]
+  (with-effects
+    (+ x (! (effect :my/suspend)))))
+
+(def log-cont-1 (-> log-ef
+                    (e/continuation)
+                    (log/wrap-log)))
+
+(def log-suspended-result-1 (e/perform log-handlers log-cont-1 [1]))
 ```
+
+`e/perform` вернет пару, где первый элемент сигнализирует о заморозке, а второй -
+журнал выполненных эффектов и коэффектов.
+
+```clojure
+log-suspended-result-1
+=> [::log/suspended [{:coeffect [1] ;; args
+                      :next-effect [:my/suspend]}]]
+```
+
+Чтобы продолжить выполнение,
+нужно заново проиграть выполненные ранее эффекты с помощью `log/resume`
+и передать вычисленный коэффект для последнего эффекта в журнале в `e/perform`.
+В этом примере последний эффект - `:my/suspend`, а в качестве коэффекта пусть будет `2`
+
+```clojure
+(def log-cont-2 (-> log-ef
+                    (e/continuation)
+                    (log/wrap-log)
+                    (log/resume (last log-suspended-result-1))))
+
+(def log-suspended-result-2 (e/perform log-handlers log-cont-2 2))
+```
+
+В итоге `e/perform` вернет тройку, где первый элемен сигнализирует о завершении вычисления,
+второй содержит результат, а третий - весь журнал с начала вычисления.
+
+```clojure
+log-suspended-result-2
+=> [::log/result
+    3
+    [{:coeffect [1]
+      :next-effect [:my/suspend]}
+     {:coeffect 2
+      :next-effect 3}]]
+```
+
+Middleware можно комбинировать.
+Подробнее в [composition test](test/darkleaf/effect/middleware/composition_test.cljc).
 
 ## Internals
 
