@@ -3,8 +3,17 @@
    [darkleaf.effect.core :as e :refer [with-effects ! effect]]
    [darkleaf.effect.script :as script]
    [clojure.test :as t])
+  #?(:cljs (:require-macros [darkleaf.effect.core-test :refer [async]]))
   (:import
    #?(:clj [clojure.lang ExceptionInfo])))
+
+(defmacro ^{:style/indent 1, :private true} async [done & body]
+  (if (:js-globals &env) ;; if clojure-script?
+    `(t/async ~done ~@body)
+    `(let [done?# (atom false)
+           ~done  (fn [] (reset! done?# true))]
+       ~@body
+       (assert @done?#))))
 
 (defn- next-tick [f & args]
   #?(:clj  (apply f args)
@@ -37,12 +46,12 @@
         f            (fn [x respond raise]
                        (e/perform handlers continuation [x]
                                   respond raise))]
-    (#?@(:cljs [t/async done], :clj [let [done (fn [])]])
-     (letfn [(check [kind value]
-               (t/is (= :respond kind))
-               (t/is (= 1 value))
-               (done))]
-       (f 10 #(check :respond %) #(check :raise %))))))
+    (async done
+      (letfn [(check [kind value]
+                (t/is (= :respond kind))
+                (t/is (= 1 value))
+                (done))]
+        (f 10 #(check :respond %) #(check :raise %))))))
 
 (t/deftest missed-handler
   (let [ef           (fn [k]
@@ -64,12 +73,12 @@
         f            (fn [k respond raise]
                        (e/perform handlers continuation [k]
                                   respond raise))]
-    (#?@(:cljs [t/async done], :clj [let [done (fn [])]])
-     (letfn [(check [kind value]
-               (t/is (= :raise kind))
-               (t/is (= "The effect handler is not a function" (ex-message value)))
-               (done))]
-       (f 10 #(check :respond %) #(check :raise %))))))
+    (async done
+      (letfn [(check [kind value]
+                (t/is (= :raise kind))
+                (t/is (= "The effect handler is not a function" (ex-message value)))
+                (done))]
+        (f 10 #(check :respond %) #(check :raise %))))))
 
 (t/deftest stack-use-case
   (let [nested-ef    (fn [x]
@@ -201,13 +210,13 @@
         f            (fn [respond raise]
                        (e/perform handlers continuation []
                                   respond raise))]
-    (#?@(:cljs [t/async done], :clj [let [done (fn [])]])
-     (letfn [(check [kind value]
-               (t/is (= :raise kind))
-               (t/is (= "Test" (ex-message value)))
-               (done))]
-       (f #(check :respond %)
-          #(check :raise %))))))
+    (async done
+      (letfn [(check [kind value]
+                (t/is (= :raise kind))
+                (t/is (= "Test" (ex-message value)))
+                (done))]
+        (f #(check :respond %)
+           #(check :raise %))))))
 
 (t/deftest exceptions-in-handler-async
   (let [ef           (fn []
@@ -220,12 +229,12 @@
         f            (fn [respond raise]
                        (e/perform handlers continuation []
                                   respond raise))]
-    (#?@(:cljs [t/async done], :clj [let [done (fn [])]])
-     (letfn [(check [kind value]
-               (t/is (= :raise kind))
-               (t/is (= "Test" (ex-message value)))
-               (done))]
-       (f #(check :respond %) #(check :raise %))))))
+    (async done
+      (letfn [(check [kind value]
+                (t/is (= :raise kind))
+                (t/is (= "Test" (ex-message value)))
+                (done))]
+        (f #(check :respond %) #(check :raise %))))))
 
 (t/deftest exceptions-catch-in-ef-async
   (let [ef           (fn []
@@ -240,12 +249,12 @@
         f            (fn [respond raise]
                        (e/perform handlers continuation []
                                   respond raise))]
-    (#?@(:cljs [t/async done], :clj [let [done (fn [])]])
-     (letfn [(check [kind value]
-               (t/is (= :respond kind))
-               (t/is (= :error value))
-               (done))]
-       (f #(check :respond %) #(check :raise %))))))
+    (async done
+      (letfn [(check [kind value]
+                (t/is (= :respond kind))
+                (t/is (= :error value))
+                (done))]
+        (f #(check :respond %) #(check :raise %))))))
 
 (t/deftest multi-shot
   (let [ef                 (fn []
