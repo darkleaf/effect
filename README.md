@@ -455,6 +455,8 @@ Expected effect сравнивается с actual effect по значению 
     #_"some code")
 ```
 
+### Context
+
 С помощью [context middleware](test/darkleaf/effect/middleware/context_test.cljc)
 вы можете передавать контекст между обработчиками эффектов.
 Это напоминает монады State, Reader и Writer.
@@ -482,6 +484,8 @@ Expected effect сравнивается с actual effect по значению 
 После применения `context/wrap-context` обработчики принимают контекст первым дополнительным аргументом
 и должны возвращать пару из контекста и коэффекта.
 
+### Reduced
+
 С помощью [reduced middleware](test/darkleaf/effect/middleware/reduced_test.cljc)
 вы можете досрочно прервать вычисление. Это напоминает монады Maybe или Either.
 
@@ -507,6 +511,8 @@ Expected effect сравнивается с actual effect по значению 
 
 Если обработчик возвращает `reduced` значение, то вычисление прерывается и это значение
 используется для возврата из функции.
+
+### Contract
 
 С помощью [contract middleware](test/darkleaf/effect/middleware/contract_test.cljc)
 вы можете проверять контракты функций и их эффектов/коэффектов.
@@ -534,6 +540,8 @@ Expected effect сравнивается с actual effect по значению 
       (ex-data e))))
 => {:coeffect "wrong int", :path [:my/effect :coeffect]}
 ```
+
+### Log
 
 С помощью [log middleware](test/darkleaf/effect/middleware/log_test.cljc)
 вы можете вести журнал эффектов, что позволяет замораживать и продолжать вычисление.
