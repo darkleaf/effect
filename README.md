@@ -339,7 +339,100 @@ Expected effect сравнивается с actual effect по значению 
 
 ## Exceptions
 
-## Higer-order effects ?
+Исключения работают так, как вы ожидаете.
+Например, если обработчик бросил исключение, то поймать его можно в функции с эффектами и принять нужное решение.
+
+```clojure
+(defn catch-exception []
+  (with-effects
+    (try
+      (! (effect :prn "Hi"))
+      (catch Throwable ex
+        (ex-message ex)))))
+```
+
+```clojure
+(let [continuation (e/continuation catch-exception)
+      handlers     {:prn (fn [_]
+                           (throw (ex-info "Test" {})))}]
+  (e/perform handlers continuation []))
+=> "Test"
+```
+
+Чтобы протестировать обработку исключения, передайте его как coeffect:
+
+```clojure
+(t/deftest catch-exception-test
+  (let [continuation (e/continuation catch-exception)
+        script       [{:args []}
+                      {:effect   [:prn "Hi"]
+                       :coeffect (ex-info "Test" {})}
+                      {:return "Test"}]]
+    (script/test continuation script)))
+```
+
+
+С помощью `thrown` можно проверить какое исключение было брошено:
+
+```clojure
+(t/deftest throw-exception-test
+  (let [ef           (fn []
+                       (with-effects
+                         (throw (ex-info "Message" {:foo :bar}))))
+        continuation (e/continuation ef)
+        script       [{:args []}
+                      {:effect   [:some-eff]
+                       :coeffect :some-coeff}
+                      {:thrown {:type    ExceptionInfo
+                                :message "Message"
+                                :data    {:foo :bar}}}]]
+    (script/test continuation script)))
+```
+
+## Effect as value
+
+`effect` - обычная фукнция и может использоваться отдельно от `!`.
+
+```clojure
+(t/deftest effect-as-value
+  (let [effect-tag   :prn
+        effect-arg   1
+        test-effect  (effect effect-tag effect-arg)
+        ef           (fn []
+                       (with-effects
+                         (! test-effect)))
+        continuation (e/continuation ef)
+        script       [{:args []}
+                      {:effect   [:prn 1]
+                       :coeffect nil}
+                      {:return nil}]]
+    (script/test continuation script)))
+```
+
+## Higer order effect
+
+Эффект - это значение и функции могут возвращать эффект так же как и любое другое значение.
+
+```clojure
+(t/deftest higher-order-effect
+  (let [nested-ef    (fn []
+                       (with-effects
+                         (! (effect :a))
+                         (effect :b)))
+        ef           (fn []
+                       (with-effects
+                         (! (! (nested-ef)))))
+                   ;; ----^     runs effect [:b]
+                   ;; -------^  runs nested-ef
+        continuation (e/continuation ef)
+        script       [{:args []}
+                      {:effect   [:a]
+                       :coeffect nil}
+                      {:effect   [:b]
+                       :coeffect :some-value}
+                      {:return :some-value}]]
+     (script/test continuation script)))
+```
 
 ## Middlewares
 
@@ -509,4 +602,19 @@ Middleware можно комбинировать.
 
 ## Internals
 
-https://github.com/leonoel/cloroutine
+Макрос `with-effects` использует библиотеку [cloroutine](https://github.com/leonoel/cloroutine)
+для преобразования форм в стейт машину.
+
+Как показано раньше, континуация - это обычная функция и она ожидаемо может быть вызвана много раз.
+Это называется multi-shot континуацией.
+
+```clojure
+(defn login-4 [{:as form :keys [login password]}]
+  [[:get-session]
+   (fn [session]
+     ;;...
+     )])
+```
+
+Однако, сloroutine предоставляет только one-shot корутины и механизм их клонирования.
+Это позволяет реализовать ожидаемое multi-shot поведение.
