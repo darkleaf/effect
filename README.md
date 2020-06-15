@@ -3,6 +3,23 @@
 
 Алгебраические эффекты для Clojure(Script).
 
+- [Api](#api)
+- [Rationale](#rationale)
+- [Effect](#effect)
+  * [Script testing](#script-testing)
+  * [Stack](#stack)
+  * [Core analogs](#core-analogs)
+  * [Async handlers](#async-handlers)
+  * [Exceptions](#exceptions)
+  * [Effect as value](#effect-as-value)
+  * [Higher order effect](#higher-order-effect)
+  * [Middlewares](#middlewares)
+    + [Context](#context)
+    + [Reduced](#reduced)
+    + [Contract](#contract)
+    + [Log](#log)
+  * [Internals](#internals)
+
 # Api
 
 * [core test](test/darkleaf/effect/core_test.cljc).
