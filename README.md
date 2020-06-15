@@ -327,7 +327,7 @@ Expected effect сравнивается с actual effect по значению 
     ([handlers continuation coeffect-or-args respond raise])))
 ```
 
-Асинхронный обработчик так же должен принимать 2 дополнительных аргумента для ассинхронного случая
+Асинхронный обработчик так же должен принимать 2 дополнительных аргумента для асинхронного случая
 
 ```clojure
 (comment
@@ -391,7 +391,7 @@ Expected effect сравнивается с actual effect по значению 
 
 ## Effect as value
 
-`effect` - обычная фукнция и может использоваться отдельно от `!`.
+`effect` - обычная функция и может использоваться отдельно от `!`.
 
 ```clojure
 (t/deftest effect-as-value
@@ -409,7 +409,7 @@ Expected effect сравнивается с actual effect по значению 
     (script/test continuation script)))
 ```
 
-## Higer order effect
+## Higher order effect
 
 Эффект - это значение и функции могут возвращать эффект так же как и любое другое значение.
 
@@ -584,7 +584,7 @@ log-suspended-result-1
 (def log-suspended-result-2 (e/perform log-handlers log-cont-2 2))
 ```
 
-В итоге `e/perform` вернет тройку, где первый элемен сигнализирует о завершении вычисления,
+В итоге `e/perform` вернет тройку, где первый элемент сигнализирует о завершении вычисления,
 второй содержит результат, а третий - весь журнал с начала вычисления.
 
 ```clojure
