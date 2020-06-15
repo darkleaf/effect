@@ -22,15 +22,16 @@
 
 # Api
 
-* [core test](test/darkleaf/effect/core_test.cljc).
-* [script test](test/darkleaf/effect/script_test.cljc).
-* [core analogs test](test/darkleaf/effect/core_analogs_test.cljc).
-* middleware
-  * [composition test](test/darkleaf/effect/middleware/composition_test.cljc).
-  * [context test](test/darkleaf/effect/middleware/context_test.cljc).
-  * [contract test](test/darkleaf/effect/middleware/contract_test.cljc).
-  * [log test](test/darkleaf/effect/middleware/log_test.cljc).
-  * [reduced test](test/darkleaf/effect/middleware/reduced_test.cljc).
+Исчерпывающее описание api вы сможете найти в тестах:
+
+* [darkleaf.effect.core-test](test/darkleaf/effect/core_test.cljc)
+* [darkleaf.effect.script-test](test/darkleaf/effect/script_test.cljc)
+* [darkleaf.effect.core-analogs-test](test/darkleaf/effect/core_analogs_test.cljc)
+* [darkleaf.effect.middleware.composition-test](test/darkleaf/effect/middleware/composition_test.cljc)
+* [darkleaf.effect.middleware.context-test](test/darkleaf/effect/middleware/context_test.cljc)
+* [darkleaf.effect.middleware.contract-test](test/darkleaf/effect/middleware/contract_test.cljc)
+* [darkleaf.effect.middleware.log-test](test/darkleaf/effect/middleware/log_test.cljc)
+* [darkleaf.effect.middleware.reduced-test](test/darkleaf/effect/middleware/reduced_test.cljc)
 
 # Rationale
 
