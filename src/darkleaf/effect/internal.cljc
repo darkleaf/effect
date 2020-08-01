@@ -1,14 +1,12 @@
 (ns darkleaf.effect.internal
-  #?(:cljs (:require-macros [darkleaf.effect.internal :refer [<<-]])))
+  (:require
+   [darkleaf.effect.util :as u]))
 
 (defn kind [x]
   (-> x meta ::kind))
 
 (defn with-kind [x kind]
   (vary-meta x assoc ::kind kind))
-
-(defn throwable? [x]
-  (instance? #?(:clj Throwable, :cljs js/Error) x))
 
 (defn wrap-return-value [x]
   (with-kind [x] :return-value))
@@ -19,13 +17,10 @@
 (declare ^:dynamic *coeffect*)
 
 (defn coeffect []
-  (if (throwable? *coeffect*)
+  (if (u/throwable? *coeffect*)
     (throw *coeffect*)
     *coeffect*))
 
 (defn with-coeffect [coval coroutine]
   (binding [*coeffect* coval]
     (coroutine)))
-
-(defmacro <<- [& body]
-  `(->> ~@(reverse body)))

@@ -4,11 +4,11 @@
    [clojure.test :as t]
    [clojure.string :as str]
    [clojure.data :as data]
-   [darkleaf.effect.internal :as i]))
+   [darkleaf.effect.util :as u]))
 
 (defn- match-value [expected actual]
   (when (not= expected actual)
-    (if (i/throwable? actual)
+    (if (u/throwable? actual)
       {:type     :error
        :expected expected
        :actual   actual}
@@ -18,12 +18,12 @@
        :diffs    [[actual (data/diff expected actual)]]})))
 
 (defn- match-throwable [expected actual]
-  (i/<<-
+  (u/<<-
    (if-not (map? expected)
      {:type     :fail
       :expected (list 'map? expected)
       :actual   false})
-   (if-not (i/throwable? actual)
+   (if-not (u/throwable? actual)
      {:type     :fail
       :expected expected
       :actual   actual})
@@ -60,12 +60,12 @@
 
 (defn- test-middle-item [{:keys [report actual-effect continuation] :as ctx}
                          {:keys [effect coeffect] :as item}]
-  (i/<<-
+  (u/<<-
    (if (not= :pass (:type report))
      {:report report})
 
    (if (nil? continuation)
-     (if (i/throwable? actual-effect)
+     (if (u/throwable? actual-effect)
        {:report {:type     :error
                  :expected effect
                  :actual   actual-effect
@@ -90,7 +90,7 @@
 
 (defn- test-last-item [{:keys [report actual-effect continuation]}
                        {:keys [return final-effect thrown] :as item}]
-  (i/<<-
+  (u/<<-
    (if (not= :pass (:type report))
      {:report report})
 
@@ -99,7 +99,7 @@
        (if-some [report (match-value final-effect actual-effect)]
          {:report (assoc report :message "Wrong final effect")}
          {:report report})
-       (if (i/throwable? actual-effect)
+       (if (u/throwable? actual-effect)
          {:report {:type     :error
                    :expected '(some? continuation)
                    :actual   actual-effect
