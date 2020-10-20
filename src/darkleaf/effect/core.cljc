@@ -1,86 +1,71 @@
 (ns darkleaf.effect.core
   (:require
-   [cloroutine.core :refer [cr]]
-   [darkleaf.effect.internal :as i])
-  #?(:cljs (:require-macros [darkleaf.effect.core :refer [with-effects]])))
+   [darkleaf.generator.core :as gen]
+   [darkleaf.effect.impl :as impl]))
 
 (defn effect [tag & args]
-  (-> (cons tag args)
-      (i/with-kind :effect)))
+  (impl/->Effect tag args))
 
-(defn ! [x]
-  x)
+(defn gen-wrap
+  ([gen] (gen-wrap gen nil))
+  ([gen wrappers]
+   (reduce (fn [gen wrapper]
+             (wrapper gen))
+           gen
+           (concat [gen/wrap-stack impl/wrap-pass-values]
+                   wrappers))))
 
-(defmacro with-effects [& body]
-  `(i/with-kind
-     (cr {! i/coeffect}
-         (i/wrap-return-value
-          (do ~@body)))
-     :coroutine))
+(defn fn-wrap
+  ([f] (fn-wrap f nil))
+  ([f wrappers]
+   (fn [& args]
+     (-> f
+         (apply args)
+         (gen-wrap)))))
 
-(defn- update-head [coll f & args]
-  (if (seq coll)
-    (-> coll
-        (pop)
-        (conj (apply f (peek coll) args)))
-    coll))
+(defn- getx
+  "Like two-argument get, but throws an exception if the key is
+   not found."
+  [m k]
+  (let [e (get m k ::sentinel)]
+    (if-not (= e ::sentinel)
+      e
+      (throw (ex-info "Missing required key" {:map m :key k})))))
 
-(defn- clone-coroutine [coroutine]
-  (coroutine identity))
-
-(defn- stack->continuation [stack]
-  (fn [coeffect]
-    (loop [stack    (update-head stack clone-coroutine)
-           coeffect coeffect]
-      (if (empty? stack)
-        [coeffect nil]
-        (let [coroutine (peek stack)
-              val       (i/with-coeffect coeffect coroutine)]
-          (case (i/kind val)
-            :effect       [val (stack->continuation stack)]
-            :coroutine    (recur (conj stack val) ::not-used)
-            :return-value (recur (pop stack) (i/unwrap-value val))
-            (recur stack val)))))))
-
-(defn continuation [effn]
-  (fn [args]
-    (let [coroutine (apply effn args)
-          stack     (list coroutine)
-          cont      (stack->continuation stack)
-          coeffect  ::not-used]
-      (cont coeffect))))
-
-(defn- exec-effect
-  ([handlers [tag & args]]
-   (let [handler (get handlers tag)]
-     (if-not (ifn? handler) (throw (ex-info "The effect handler is not a function"
-                                            {:handler handler :tag tag})))
-     (try
-       (apply handler args)
-       (catch #?(:clj Throwable, :cljs js/Error) error
-         error))))
-  ([handlers [tag & args] respond raise]
-   (let [handler (get handlers tag)]
-     (if-not (ifn? handler)
-       (raise (ex-info "The effect handler is not a function"
-                       {:handler handler :tag tag}))
-       (apply handler (concat args [respond respond]))))))
-
+;; я тут везде js/Error делаю, а может нужно :default, из-за gen/return
 (defn perform
-  ([handlers continuation coeffect-or-args]
-   (loop [[effect continuation] (continuation coeffect-or-args)]
-     (if (nil? continuation)
-       effect
-       (recur (continuation (exec-effect handlers effect))))))
-  ([handlers continuation coeffect-or-args respond raise]
+  ([handlers gen]
    (try
-     (let [[effect continuation] (continuation coeffect-or-args)]
-       (if (nil? continuation)
-         (respond effect)
-         (exec-effect handlers effect
-                      (fn [coeffect]
-                        (perform handlers continuation coeffect
-                                 respond raise))
-                      raise)))
-     (catch #?(:clj Throwable, :cljs js/Error) error
-       (raise error)))))
+     (while (not (gen/done? gen))
+       (let [{:keys [tag args]} (gen/value gen)
+             handler            (getx handlers tag)
+             [op covalue]       (try
+                                  [gen/next (apply handler args)]
+                                  (catch #?(:clj Exception :cljs js/Error) ex
+                                    [gen/throw ex]))]
+         (op gen covalue)))
+     (gen/value gen)
+     (catch #?(:clj Exception :cljs js/Error) ex
+       (throw (ex-info "Error performing generator" {:effect (gen/value gen)} ex)))))
+  ([handlers gen respond raise]
+   (let [raise #(raise (ex-info "Error performing generator" {:effect (gen/value gen)} %))]
+     (try
+       (if (gen/done? gen)
+         (respond (gen/value gen))
+         (let [{:keys [tag args]} (gen/value gen)
+               handler            (getx handlers tag)
+               respond*           (fn [coeffect]
+                                    (try
+                                      (gen/next gen coeffect)
+                                      (perform handlers gen respond raise)
+                                      (catch #?(:clj Exception :cljs js/Error) ex
+                                        (raise ex))))
+               raise*             (fn [ex]
+                                    (try
+                                      (gen/throw gen ex)
+                                      (perform handlers gen respond raise)
+                                      (catch #?(:clj Exception :cljs js/Error) ex
+                                        (raise ex))))]
+           (apply handler (concat args [respond* raise*]))))
+       (catch #?(:clj Exception :cljs js/Error) ex
+         (raise ex))))))
