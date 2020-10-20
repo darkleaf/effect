@@ -11,17 +11,19 @@
         (p/-next gen v)
         (recur gen)))))
 
-(defn wrap-pass-values [gen]
-  (reify
-    p/Generator
-    (-done? [_] (p/-done? gen))
-    (-value [_] (p/-value gen))
-    (-next [_ covalue]
-      (p/-next gen covalue)
-      (pass-value gen))
-    (-throw [_ throwable]
-      (p/-throw gen throwable)
-      (pass-value gen))
-    (-return [_ result]
-      (p/-return gen result)
-      (pass-value gen))))
+(defn wrap-pass-values [f*]
+  (fn [& args]
+    (let [gen (apply f* args)]
+      (reify
+        p/Generator
+        (-done? [_] (p/-done? gen))
+        (-value [_] (p/-value gen))
+        (-next [_ covalue]
+          (p/-next gen covalue)
+          (pass-value gen))
+        (-throw [_ throwable]
+          (p/-throw gen throwable)
+          (pass-value gen))
+        (-return [_ result]
+          (p/-return gen result)
+          (pass-value gen))))))

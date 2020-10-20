@@ -6,22 +6,33 @@
 (defn effect [tag & args]
   (impl/->Effect tag args))
 
-(defn gen-wrap
-  ([gen] (gen-wrap gen nil))
-  ([gen wrappers]
-   (reduce (fn [gen wrapper]
-             (wrapper gen))
-           gen
-           (concat [gen/wrap-stack impl/wrap-pass-values]
-                   wrappers))))
+#_(defn gen-wrap
+    ([gen] (gen-wrap gen nil))
+    ([gen wrappers]
+     (reduce (fn [gen wrapper]
+               (wrapper gen))
+             gen
+             (concat [gen/wrap-stack impl/wrap-pass-values]
+                     wrappers))))
 
-(defn fn-wrap
-  ([f] (fn-wrap f nil))
-  ([f wrappers]
-   (fn [& args]
-     (-> f
-         (apply args)
-         (gen-wrap)))))
+#_(defn fn-wrap
+    ([f] (fn-wrap f nil))
+    ([f wrappers]
+     (fn [& args]
+       (-> f
+           (apply args)
+           (gen-wrap)))))
+
+(defn- wrap-stack [f*]
+  (fn [& args]
+    (-> f*
+        (apply args)
+        (gen/wrap-stack))))
+
+(defn wrap [f*]
+  (-> f*
+      wrap-stack
+      impl/wrap-pass-values))
 
 (defn- getx
   "Like two-argument get, but throws an exception if the key is

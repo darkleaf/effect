@@ -23,7 +23,7 @@
   (let [f* (fn [k]
              (generator
                (int (* k (yield (effect :random))))))
-        f* (e/fn-wrap f*)]
+        f* (e/wrap f*)]
     (t/testing "interpretator"
       (let [handlers {:random (fn [] 0.1)}
             f (fn [k]
@@ -42,7 +42,7 @@
                      (int (* k (yield (effect :random))))))
         handlers {:random (fn [respond raise]
                             (next-tick respond 0.1))}
-        f*       (e/fn-wrap f*)
+        f*       (e/wrap f*)
         f        (fn [x respond raise]
                    (e/perform handlers (f* x) respond raise))]
     (async done
@@ -56,7 +56,7 @@
   (let [f*       (fn []
                    (generator
                      (yield (effect :random))))
-        f*       (e/fn-wrap f*)
+        f*       (e/wrap f*)
         handlers {}
         f        (fn []
                    (e/perform handlers (f*)))
@@ -69,7 +69,7 @@
   (let [f*       (fn []
                    (generator
                      (yield (effect :random))))
-        f*       (e/fn-wrap f*)
+        f*       (e/wrap f*)
         handlers {}
         f        (fn [k respond raise]
                    (e/perform handlers (f*) respond raise))]
@@ -91,7 +91,7 @@
                     (generator
                       (yield (effect :prn "start ef"))
                       (yield (nested-f* x))))
-        f*        (e/fn-wrap f*)]
+        f*        (e/wrap f*)]
     (t/testing "interpretator"
       (let [gen      (f* "some val")
             handlers {:prn  (fn [_]  nil)
@@ -125,7 +125,7 @@
                      b (yield [:not-effect])
                      c (yield (inc x))]
                  [a b c])))
-        f* (e/fn-wrap f*)]
+        f* (e/wrap f*)]
     (t/testing "interpretator"
       (let [gen      (f* 0)
             handlers {:eff (fn [] :coeff)}]
@@ -147,7 +147,7 @@
         f*          (fn []
                       (generator
                         (yield test-effect)))
-        f*          (e/fn-wrap f*)
+        f*          (e/wrap f*)
         gen         (f*)]
     (t/is (= (effect :prn 1)
              (gen/value gen)))
@@ -164,7 +164,7 @@
         f*        (fn []
                     (generator
                       (yield (yield (nested-f*)))))
-        f*        (e/fn-wrap f*)
+        f*        (e/wrap f*)
         gen (f*)]
 
     (t/is (= (effect :a)
@@ -185,7 +185,7 @@
                      (generator
                        (yield (effect :prn "Throw!"))
                        (throw (ex-info "Test" {}))))
-          f*       (e/fn-wrap f*)
+          f*       (e/wrap f*)
           handlers {:prn (fn [_] nil)}
           f        (fn []
                      (e/perform handlers (f*)))
@@ -201,7 +201,7 @@
                    (generator
                      (yield (effect :prn "Throw!"))
                      (throw (ex-info "Test" {}))))
-        f*       (e/fn-wrap f*)
+        f*       (e/wrap f*)
         handlers {:prn (fn [msg respond raise]
                          (next-tick respond nil))}
         f        (fn [respond raise]
@@ -222,7 +222,7 @@
                    (generator
                      (yield (effect :prn "Throw!"))
                      :some-val))
-        f*       (e/fn-wrap f*)
+        f*       (e/wrap f*)
         handlers {:prn (fn [msg]
                          (throw (ex-info "Test" {})))}
         f        (fn []
@@ -239,7 +239,7 @@
                    (generator
                      (yield (effect :prn "Throw!"))
                      :some-val))
-        f*       (e/fn-wrap f*)
+        f*       (e/wrap f*)
         handlers {:prn (fn [msg respond raise]
                          (next-tick raise (ex-info "Test" {})))}
         f        (fn [respond raise]
@@ -261,7 +261,7 @@
                        (yield (effect :prn "Throw!"))
                        (catch ExceptionInfo ex
                          (ex-message ex)))))
-        f*       (e/fn-wrap f*)
+        f*       (e/wrap f*)
         handlers {:prn (fn [msg]
                          (throw (ex-info "Test" {})))}
         f        (fn []
@@ -275,7 +275,7 @@
                        (yield (effect :prn "Throw"))
                        (catch ExceptionInfo ex
                          (ex-message ex)))))
-        f*       (e/fn-wrap f*)
+        f*       (e/wrap f*)
         handlers {:prn (fn [msg respond raise]
                          (next-tick raise (ex-info "Test" {})))}
         f        (fn [respond raise]
