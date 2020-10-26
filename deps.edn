@@ -1,5 +1,5 @@
 {:deps    {darkleaf/generator {:git/url "https://github.com/darkleaf/generator.git"
-                               :sha     "ab46a38e0e1ae870754614d168587cd15bcf8084"}}
+                               :sha     "4c1606c59687db213f9fe5c9be41bb32e1b0598f"}}
  :aliases {:dev       {:extra-paths ["test"]}
            :clj-test  {:extra-deps {com.cognitect/test-runner
                                     {:git/url "https://github.com/cognitect-labs/test-runner.git"
