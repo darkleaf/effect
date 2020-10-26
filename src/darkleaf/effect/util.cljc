@@ -1,8 +1,10 @@
-(ns darkleaf.effect.util
-  #?(:cljs (:require-macros [darkleaf.effect.util :refer [<<-]])))
+(ns darkleaf.effect.util)
 
-(defmacro <<- [& body]
-  `(->> ~@(reverse body)))
-
-(defn throwable? [x]
-  (instance? #?(:clj Throwable, :cljs js/Error) x))
+(defn getx
+  "Like two-argument get, but throws an exception if the key is
+   not found."
+  [m k]
+  (let [e (get m k ::sentinel)]
+    (if-not (= e ::sentinel)
+      e
+      (throw (ex-info "Missing required key" {:map m :key k})))))
