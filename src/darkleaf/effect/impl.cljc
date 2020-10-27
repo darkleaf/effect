@@ -4,26 +4,24 @@
 
 (defrecord Effect [tag args])
 
-(defn- pass-value [gen]
-  (when-not (p/-done? gen)
-    (let [v (p/-value gen)]
-      (when-not (instance? Effect v)
-        (p/-next gen v)
-        (recur gen)))))
-
 (defn wrap-pass-values [f*]
   (fn [& args]
-    (let [gen (apply f* args)]
+    (let [gen        (apply f* args)
+          pass-value #(when-not (p/-done? gen)
+                        (let [v (p/-value gen)]
+                          (when-not (instance? Effect v)
+                            (p/-next gen v)
+                            (recur))))]
       (reify
         p/Generator
         (-done? [_] (p/-done? gen))
         (-value [_] (p/-value gen))
         (-next [_ covalue]
           (p/-next gen covalue)
-          (pass-value gen))
+          (pass-value))
         (-throw [_ throwable]
           (p/-throw gen throwable)
-          (pass-value gen))
+          (pass-value))
         (-return [_ result]
           (p/-return gen result)
-          (pass-value gen))))))
+          (pass-value))))))
