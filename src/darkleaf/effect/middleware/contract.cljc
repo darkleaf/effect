@@ -9,7 +9,7 @@
                   predicate (u/getx-in contract path)]
               (when-not (apply predicate args)
                 (throw (ex-info "The args are rejected by a predicate"
-                                {:args args :path path})))))
+                                {:predicate predicate :args args :path path})))))
           (check-effect [gen]
             (if (p/-done? gen)
               (-check-return gen)
@@ -21,21 +21,23 @@
                     predicate     (u/getx-in contract path)]
                 (when-not (predicate coeffect)
                   (throw (ex-info "The coeffect is rejected by a predicate"
-                                  {:coeffect coeffect :path path}))))))
+                                  {:predicate predicate :coeffect coeffect
+                                   :path path}))))))
           (-check-effect [gen]
             (let [{:keys [tag args]} (p/-value gen)
                   path               [tag :effect]
                   predicate          (u/getx-in contract path)]
               (when-not (apply predicate args)
                 (throw (ex-info "The effect args are rejected by a predicate"
-                                {:args args :path path})))))
+                                {:predicate predicate :args args :path path})))))
           (-check-return [gen]
             (let [value     (p/-value gen)
                   path      [fn-name :return]
                   predicate (u/getx-in contract path)]
               (when-not (predicate value)
                 (throw (ex-info "The return value is rejected by a predicate"
-                                {:return value :path path})))))]
+                                {:predicate predicate :return value
+                                 :path path})))))]
     (fn [& args]
       (check-args args)
       (let [gen (apply f* args)]
@@ -56,4 +58,3 @@
           (-return [_ result]
             (p/-return gen result)
             (check-effect gen)))))))
-
