@@ -1,16 +1,43 @@
 (ns darkleaf.effect.core
   (:require
    [darkleaf.generator.core :as gen]
-   [darkleaf.effect.impl :as impl]
+   [darkleaf.generator.proto :as p]
    [darkleaf.effect.util :as u]))
 
+(defrecord Effect [tag args])
+
+#?(:clj (alter-meta! #'->Effect assoc :private true))
+#?(:clj (alter-meta! #'map->Effect assoc :private true))
+
 (defn effect [tag & args]
-  (impl/->Effect tag args))
+  (->Effect tag args))
+
+(defn- wrap-pass-values [f*]
+  (fn [& args]
+    (let [gen        (apply f* args)
+          pass-value #(when-not (p/-done? gen)
+                        (let [v (p/-value gen)]
+                          (when-not (instance? Effect v)
+                            (p/-next gen v)
+                            (recur))))]
+      (reify
+        p/Generator
+        (-done? [_] (p/-done? gen))
+        (-value [_] (p/-value gen))
+        (-next [_ covalue]
+          (p/-next gen covalue)
+          (pass-value))
+        (-throw [_ throwable]
+          (p/-throw gen throwable)
+          (pass-value))
+        (-return [_ result]
+          (p/-return gen result)
+          (pass-value))))))
 
 (defn wrap [f*]
   (-> f*
       gen/wrap-stack
-      impl/wrap-pass-values))
+      wrap-pass-values))
 
 (defn perform
   ([handlers gen]
