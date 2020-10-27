@@ -37,3 +37,13 @@
         (-return [_ [new-context result]]
           (p/-return gen result)
           (process))))))
+
+(def contract
+  {::get    {:effect   (fn [] true)
+             :coeffect any?}
+   ::put    {:effect   any?
+             :coeffect any?}
+   ::gets   {:effect   (fn [f & args] (ifn? f))
+             :coeffect any?}
+   ::modify {:effect   (fn [f & args] (ifn? f))
+             :coeffect any?}})
