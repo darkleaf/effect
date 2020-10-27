@@ -12,7 +12,6 @@
       gen/wrap-stack
       impl/wrap-pass-values))
 
-;; я тут везде js/Error делаю, а может нужно :default, из-за gen/return
 (defn perform
   ([handlers gen]
    (try
