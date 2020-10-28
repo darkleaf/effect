@@ -20,6 +20,7 @@
                           (when-not (instance? Effect v)
                             (p/-next gen v)
                             (recur))))]
+      (pass-value)
       (reify
         p/Generator
         (-done? [_] (p/-done? gen))

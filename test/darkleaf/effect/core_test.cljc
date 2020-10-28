@@ -140,6 +140,15 @@
                  (gen/value gen)))
         (t/is (gen/done? gen))))))
 
+(t/deftest fallback-2
+  (let [f*  (fn []
+              (generator
+                (yield 1)))
+        f*  (e/wrap f*)
+        gen (f*)]
+    (t/is (gen/done? gen))
+    (t/is (= 1 (gen/value gen)))))
+
 (t/deftest effect-as-value
   (let [effect-tag  :prn
         effect-arg  1
