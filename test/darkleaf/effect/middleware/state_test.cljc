@@ -1,12 +1,10 @@
 (ns darkleaf.effect.middleware.state-test
   (:require
-   [darkleaf.generator.core :as gen :refer [generator yield]]
+   [clojure.test :as t]
    [darkleaf.effect.core :as e :refer [effect]]
-   [darkleaf.effect.middleware.state :as state]
    [darkleaf.effect.middleware.contract :as contract]
-   [clojure.test :as t])
-  (:import
-   #?(:clj [clojure.lang ExceptionInfo])))
+   [darkleaf.effect.middleware.state :as state]
+   [darkleaf.generator.core :as gen :refer [generator yield]]))
 
 (t/deftest state
   (let [f*  (fn []

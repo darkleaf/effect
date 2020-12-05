@@ -1,9 +1,9 @@
 (ns darkleaf.effect.middleware.contract-test
   (:require
-   [darkleaf.generator.core :as gen :refer [generator yield]]
+   [clojure.test :as t]
    [darkleaf.effect.core :as e :refer [effect]]
    [darkleaf.effect.middleware.contract :as contract]
-   [clojure.test :as t])
+   [darkleaf.generator.core :as gen :refer [generator yield]])
   (:import
    #?(:clj [clojure.lang ExceptionInfo])))
 

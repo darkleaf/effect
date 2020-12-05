@@ -1,9 +1,9 @@
 (ns darkleaf.effect.middleware.reduced-test
   (:require
-   [darkleaf.generator.core :as gen :refer [generator yield]]
+   [clojure.test :as t]
    [darkleaf.effect.core :as e :refer [effect]]
    [darkleaf.effect.middleware.reduced :as reduced]
-   [clojure.test :as t]))
+   [darkleaf.generator.core :as gen :refer [generator yield]]))
 
 (t/deftest maybe-example
   (let [f* (fn [x]
