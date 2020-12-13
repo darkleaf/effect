@@ -6,7 +6,7 @@
 (defn wrap-contract [f* contract fn-name]
   (letfn [(check-args [args]
             (let [path      [fn-name :args]
-                  predicate (u/getx-in contract path)]
+                  predicate (u/getx-in contract path "Missing predicate")]
               (when-not (apply predicate args)
                 (throw (ex-info "The args are rejected by a predicate"
                                 {:predicate predicate :args args :path path})))))
@@ -18,7 +18,7 @@
             (when-not (p/-done? gen)
               (let [{:keys [tag]} (p/-value gen)
                     path          [tag :coeffect]
-                    predicate     (u/getx-in contract path)]
+                    predicate     (u/getx-in contract path "Missing predicate")]
                 (when-not (predicate coeffect)
                   (throw (ex-info "The coeffect is rejected by a predicate"
                                   {:predicate predicate :coeffect coeffect
@@ -26,14 +26,14 @@
           (-check-effect [gen]
             (let [{:keys [tag args]} (p/-value gen)
                   path               [tag :effect]
-                  predicate          (u/getx-in contract path)]
+                  predicate          (u/getx-in contract path "Missing predicate")]
               (when-not (apply predicate args)
                 (throw (ex-info "The effect args are rejected by a predicate"
                                 {:predicate predicate :args args :path path})))))
           (-check-return [gen]
             (let [value     (p/-value gen)
                   path      [fn-name :return]
-                  predicate (u/getx-in contract path)]
+                  predicate (u/getx-in contract path "Missing predicate")]
               (when-not (predicate value)
                 (throw (ex-info "The return value is rejected by a predicate"
                                 {:predicate predicate :return value

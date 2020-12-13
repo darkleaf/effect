@@ -63,7 +63,7 @@
         ex       (try (f) (catch ExceptionInfo ex ex))
         cause    (ex-cause ex)]
     (t/is (= "Error performing generator" (ex-message ex)))
-    (t/is (= "Missing required key" (ex-message cause)))))
+    (t/is (= "Missing effect handler" (ex-message cause)))))
 
 (t/deftest missed-handler-async
   (let [f*       (fn []
@@ -77,7 +77,7 @@
       (letfn [(check [kind ex]
                 (t/is (= :raise kind))
                 (t/is (= "Error performing generator" (ex-message ex)))
-                (t/is (= "Missing required key" (ex-message (ex-cause ex))))
+                (t/is (= "Missing effect handler" (ex-message (ex-cause ex))))
                 (done))]
         (f 10 #(check :respond %) #(check :raise %))))))
 

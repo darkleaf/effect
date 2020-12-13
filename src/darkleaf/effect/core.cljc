@@ -45,7 +45,7 @@
    (try
      (while (not (gen/done? gen))
        (let [{:keys [tag args]} (gen/value gen)
-             handler            (u/getx handlers tag)
+             handler            (u/getx handlers tag "Missing effect handler")
              [op covalue]       (try
                                   [gen/next (apply handler args)]
                                   (catch #?(:clj Exception :cljs js/Error) ex
@@ -60,7 +60,7 @@
        (if (gen/done? gen)
          (respond (gen/value gen))
          (let [{:keys [tag args]} (gen/value gen)
-               handler            (u/getx handlers tag)
+               handler            (u/getx handlers tag "Missing effect handler")
                respond*           (fn [coeffect]
                                     (try
                                       (gen/next gen coeffect)
