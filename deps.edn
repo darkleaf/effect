@@ -1,9 +1,15 @@
-{:deps    {darkleaf/generator {:git/url "https://github.com/darkleaf/generator.git"
-                               :sha     "28f444f49779a65364d3d9187cdeb1d6bc525989"}}
+{:deps    {darkleaf/generator {:mvn/version "1.0.0"}}
  :aliases {:dev       {:extra-paths ["test"]}
            :clj-test  {:extra-deps {com.cognitect/test-runner
                                     {:git/url "https://github.com/cognitect-labs/test-runner.git"
                                      :sha     "f7ef16dc3b8332b0d77bc0274578ad5270fbfedd"}}
                        :main-opts  ["-m" "cognitect.test-runner"]}
            :cljs-test {:extra-deps {olical/cljs-test-runner {:mvn/version "3.7.0"}}
-                       :main-opts  ["-m" "cljs-test-runner.main"]}}}
+                       :main-opts  ["-m" "cljs-test-runner.main"]}
+
+           :depstar {:extra-deps {seancorfield/depstar {:mvn/version "1.1.136"}}
+                     :ns-default hf.depstar
+                     :exec-fn    jar
+                     :exec-args  {:jar "target/generator.jar"}}
+           :deploy  {:extra-deps {slipset/deps-deploy {:mvn/version "0.1.3"}}
+                     :main-opts  ["-m" "deps-deploy.deps-deploy" "deploy" "target/generator.jar"]}}}
