@@ -2,7 +2,7 @@ version: 2
 jobs:
   build:
     docker:
-      - image: circleci/clojure:openjdk-14-tools-deps-1.10.1.502-buster-node
+      - image: circleci/clojure:openjdk-11-tools-deps-1.10.1.754-buster-node
 
     working_directory: ~/repo
 
@@ -16,15 +16,13 @@ jobs:
 
       - restore_cache:
           keys:
-            - v1-dependencies-{{ checksum "project.clj" }}-{{ checksum "deps.edn" }}
+            - v1-dependencies-{{ checksum "deps.edn" }}
 
-      - run: clojure -R:dev:clj-test:cljs-test -e "(prn :deps)"
+      - run: clojure -M:dev:clj-test
+      - run: clojure -M:dev:cljs-test -c '{:optimizations :advanced, :pseudo-names true}'
 
       - save_cache:
           paths:
             - ~/.m2
             - ~/.gitlibs
-          key: v1-dependencies-{{ checksum "project.clj" }}-{{ checksum "deps.edn" }}
-
-      - run: clojure -A:dev:clj-test
-      - run: clojure -A:dev:cljs-test
+          key: v1-dependencies-{{ checksum "deps.edn" }}
